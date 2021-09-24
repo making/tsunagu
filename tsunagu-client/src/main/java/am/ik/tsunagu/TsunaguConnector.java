@@ -1,8 +1,15 @@
 package am.ik.tsunagu;
 
+import java.io.UncheckedIOException;
+import java.net.URI;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.netty.handler.logging.LogLevel;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 import io.rsocket.Payload;
 import io.rsocket.RSocket;
 import io.rsocket.util.DefaultPayload;
@@ -11,10 +18,6 @@ import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Mono;
-import reactor.netty.NettyInbound;
-import reactor.netty.NettyOutbound;
-import reactor.netty.tcp.TcpClient;
-import reactor.netty.transport.logging.AdvancedByteBufFormat;
 import reactor.util.retry.Retry;
 
 import org.springframework.boot.CommandLineRunner;
@@ -22,40 +25,61 @@ import org.springframework.messaging.rsocket.RSocketRequester;
 import org.springframework.messaging.rsocket.RSocketRequester.Builder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Component
 public class TsunaguConnector implements RSocket, CommandLineRunner {
 	private final RSocketRequester requester;
 
-	private final TcpClient tcpClient;
+	private final WebClient webClient;
 
 	private final Logger log = LoggerFactory.getLogger(TsunaguConnector.class);
 
-	public TsunaguConnector(Builder requesterBuilder, WebClient.Builder webClientBuilder, TsunaguProps props) {
+	private final ObjectMapper objectMapper;
+
+	private final TsunaguProps props;
+
+	public TsunaguConnector(Builder requesterBuilder, WebClient.Builder webClientBuilder, TsunaguProps props, ObjectMapper objectMapper) {
+		this.objectMapper = objectMapper;
 		this.requester = requesterBuilder
 				.rsocketConnector(connector -> connector
 						.reconnect(Retry.fixedDelay(Long.MAX_VALUE, Duration.ofSeconds(1))
 								.doBeforeRetry(s -> log.info("Reconnect: {}", s)))
 						.acceptor((setup, sendingSocket) -> Mono.just(TsunaguConnector.this)))
 				.websocket(props.getRemote());
-		this.tcpClient = TcpClient.create()
-				.host(props.getUpstream().getHost())
-				.port(props.getUpstream().getPort())
-				.wiretap("am.ik.tsunagu.TcpClient", LogLevel.INFO, AdvancedByteBufFormat.TEXTUAL);
+		this.webClient = webClientBuilder.build();
+		this.props = props;
 	}
 
 	@Override
 	public Flux<Payload> requestStream(Payload payload) {
-		return this.tcpClient.connect()
-				.flatMapMany(connection -> {
-					final NettyOutbound outbound = connection.outbound();
-					final NettyInbound inbound = connection.inbound();
-					final Flux<Payload> response = inbound.receive().asByteBuffer()
-							.map(DefaultPayload::create);
-					return outbound.send(Mono.just(payload.data()))
-							.then()
-							.thenMany(response);
-				}).log("requestStream");
+		try {
+			final byte[] httpRequestMetadataBytes = ByteBufUtil.getBytes(payload.metadata());
+			final HttpRequestMetadata httpRequestMetadata = this.objectMapper.readValue(httpRequestMetadataBytes, HttpRequestMetadata.class);
+			final URI uri = UriComponentsBuilder.fromUri(httpRequestMetadata.getUri())
+					.uri(this.props.getUpstream())
+					.build()
+					.toUri();
+			return this.webClient.method(httpRequestMetadata.getMethod())
+					.uri(uri)
+					.headers(httpHeaders -> httpHeaders.addAll(httpRequestMetadata.getHeaders()))
+					.exchangeToFlux(response -> {
+						try {
+							final HttpResponseMetadata httpResponseMetadata = new HttpResponseMetadata(response.statusCode(), response.headers().asHttpHeaders());
+							final byte[] httpResponseMetadataBytes = this.objectMapper.writeValueAsBytes(httpResponseMetadata);
+							final AtomicBoolean headerSent = new AtomicBoolean(false);
+							return response.bodyToFlux(ByteBuf.class)
+									.map(body -> DefaultPayload.create(body, headerSent.compareAndSet(false, true) ? Unpooled.copiedBuffer(httpResponseMetadataBytes) : Unpooled.EMPTY_BUFFER))
+									.switchIfEmpty(Flux.just(DefaultPayload.create(new byte[] {}, httpResponseMetadataBytes)));
+						}
+						catch (JsonProcessingException e) {
+							throw new UncheckedIOException(e);
+						}
+					});
+		}
+		catch (Throwable e) {
+			return Flux.error(e);
+		}
 	}
 
 	@Override

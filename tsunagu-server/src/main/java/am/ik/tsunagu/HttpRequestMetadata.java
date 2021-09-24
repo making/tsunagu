@@ -1,0 +1,45 @@
+package am.ik.tsunagu;
+
+import java.net.URI;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+
+public class HttpRequestMetadata {
+	private final HttpMethod method;
+
+	private final URI uri;
+
+	private final HttpHeaders headers;
+
+	public HttpRequestMetadata(
+			@JsonProperty("method") HttpMethod method,
+			@JsonProperty("uri") URI uri,
+			@JsonProperty("headers") HttpHeaders headers) {
+		this.method = method;
+		this.uri = uri;
+		this.headers = headers;
+	}
+
+	public HttpMethod getMethod() {
+		return method;
+	}
+
+	public URI getUri() {
+		return uri;
+	}
+
+	public HttpHeaders getHeaders() {
+		return headers;
+	}
+
+	@Override
+	public String toString() {
+		return "{method=" + method +
+				", uri=" + uri +
+				", headers=" + headers +
+				'}';
+	}
+}
