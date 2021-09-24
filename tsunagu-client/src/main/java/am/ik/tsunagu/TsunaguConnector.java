@@ -8,11 +8,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import javax.net.ssl.SSLException;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.rsocket.Payload;
 import io.rsocket.RSocket;
 import io.rsocket.util.DefaultPayload;
@@ -22,10 +27,12 @@ import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Mono;
+import reactor.netty.http.client.HttpClient;
 import reactor.util.retry.Retry;
 
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.messaging.rsocket.RSocketRequester;
 import org.springframework.messaging.rsocket.RSocketRequester.Builder;
 import org.springframework.stereotype.Component;
@@ -45,7 +52,7 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 
 	private final TsunaguProps props;
 
-	public TsunaguConnector(Builder requesterBuilder, WebClient.Builder webClientBuilder, TsunaguProps props, ObjectMapper objectMapper) {
+	public TsunaguConnector(Builder requesterBuilder, WebClient.Builder webClientBuilder, TsunaguProps props, ObjectMapper objectMapper) throws SSLException {
 		this.objectMapper = objectMapper;
 		this.requester = requesterBuilder
 				.rsocketConnector(connector -> connector
@@ -53,7 +60,11 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 								.doBeforeRetry(s -> log.info("Reconnect: {}", s)))
 						.acceptor((setup, sendingSocket) -> Mono.just(TsunaguConnector.this)))
 				.websocket(props.getRemote());
-		this.webClient = webClientBuilder.build();
+		final SslContext sslContext = SslContextBuilder.forClient()
+				.trustManager(InsecureTrustManagerFactory.INSTANCE).build();
+		this.webClient = webClientBuilder
+				.clientConnector(new ReactorClientHttpConnector(HttpClient.create().secure(ssl -> ssl.sslContext(sslContext))))
+				.build();
 		this.props = props;
 	}
 
