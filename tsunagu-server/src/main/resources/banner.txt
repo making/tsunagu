@@ -1,0 +1,10 @@
+ _______
+|__   __|
+   | |___ _   _ _ __   __ _  __ _ _   _
+   | / __| | | | '_ \ / _` |/ _` | | | |
+   | \__ \ |_| | | | | (_| | (_| | |_| |
+   |_|___/\__,_|_| |_|\__,_|\__, |\__,_|
+                             __/ |
+                            |___/
+ ${AnsiColor.YELLOW}:: Tsunagu Server ::${AnsiStyle.NORMAL}
+ ${AnsiColor.GREEN}:: Spring Boot ::${AnsiStyle.NORMAL}                ${spring-boot.formatted-version}
