@@ -5,6 +5,7 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -24,6 +25,7 @@ import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.http.HttpHeaders;
 import org.springframework.messaging.rsocket.RSocketRequester;
 import org.springframework.messaging.rsocket.RSocketRequester.Builder;
 import org.springframework.stereotype.Component;
@@ -66,7 +68,7 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 					.toUri();
 			return this.webClient.method(httpRequestMetadata.getMethod())
 					.uri(uri)
-					.headers(httpHeaders -> httpHeaders.addAll(httpRequestMetadata.getHeaders()))
+					.headers(this.copyHeaders(httpRequestMetadata))
 					.exchangeToFlux(this.handleResponse());
 		}
 		catch (IOException e) {
@@ -88,13 +90,22 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 						return this.webClient.method(httpRequestMetadata.getMethod())
 								.uri(uri)
 								.body(flux.map(Payload::data), ByteBuf.class)
-								.headers(httpHeaders -> httpHeaders.addAll(httpRequestMetadata.getHeaders()))
+								.headers(this.copyHeaders(httpRequestMetadata))
 								.exchangeToFlux(this.handleResponse());
 					}
 					catch (IOException e) {
 						return Flux.error(e);
 					}
 				});
+	}
+
+	Consumer<HttpHeaders> copyHeaders(HttpRequestMetadata httpRequestMetadata) {
+		return headers -> {
+			headers.addAll(httpRequestMetadata.getHeaders());
+			if (this.props.isPreserveHost()) {
+				headers.remove(HttpHeaders.HOST);
+			}
+		};
 	}
 
 	Function<ClientResponse, Flux<Payload>> handleResponse() {
