@@ -35,6 +35,10 @@ public class HttpRequestMetadata {
 		return headers;
 	}
 
+	public boolean hasBody() {
+		return this.method == HttpMethod.POST || this.method == HttpMethod.PUT || this.method == HttpMethod.PATCH;
+	}
+
 	@Override
 	public String toString() {
 		return "{method=" + method +

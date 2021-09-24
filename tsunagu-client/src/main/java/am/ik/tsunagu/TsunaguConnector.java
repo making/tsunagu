@@ -1,9 +1,11 @@
 package am.ik.tsunagu;
 
+import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,6 +15,7 @@ import io.netty.buffer.Unpooled;
 import io.rsocket.Payload;
 import io.rsocket.RSocket;
 import io.rsocket.util.DefaultPayload;
+import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -24,6 +27,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.messaging.rsocket.RSocketRequester;
 import org.springframework.messaging.rsocket.RSocketRequester.Builder;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -63,23 +67,50 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 			return this.webClient.method(httpRequestMetadata.getMethod())
 					.uri(uri)
 					.headers(httpHeaders -> httpHeaders.addAll(httpRequestMetadata.getHeaders()))
-					.exchangeToFlux(response -> {
-						try {
-							final HttpResponseMetadata httpResponseMetadata = new HttpResponseMetadata(response.statusCode(), response.headers().asHttpHeaders());
-							final byte[] httpResponseMetadataBytes = this.objectMapper.writeValueAsBytes(httpResponseMetadata);
-							final AtomicBoolean headerSent = new AtomicBoolean(false);
-							return response.bodyToFlux(ByteBuf.class)
-									.map(body -> DefaultPayload.create(body, headerSent.compareAndSet(false, true) ? Unpooled.copiedBuffer(httpResponseMetadataBytes) : Unpooled.EMPTY_BUFFER))
-									.switchIfEmpty(Flux.just(DefaultPayload.create(new byte[] {}, httpResponseMetadataBytes)));
-						}
-						catch (JsonProcessingException e) {
-							throw new UncheckedIOException(e);
-						}
-					});
+					.exchangeToFlux(this.handleResponse());
 		}
-		catch (Throwable e) {
+		catch (IOException e) {
 			return Flux.error(e);
 		}
+	}
+
+	@Override
+	public Flux<Payload> requestChannel(Publisher<Payload> payloads) {
+		return Flux.from(payloads)
+				.switchOnFirst((signal, flux) -> {
+					try {
+						final byte[] httpRequestMetadataBytes = ByteBufUtil.getBytes(signal.get().metadata());
+						final HttpRequestMetadata httpRequestMetadata = this.objectMapper.readValue(httpRequestMetadataBytes, HttpRequestMetadata.class);
+						final URI uri = UriComponentsBuilder.fromUri(httpRequestMetadata.getUri())
+								.uri(this.props.getUpstream())
+								.build()
+								.toUri();
+						return this.webClient.method(httpRequestMetadata.getMethod())
+								.uri(uri)
+								.body(flux.map(Payload::data), ByteBuf.class)
+								.headers(httpHeaders -> httpHeaders.addAll(httpRequestMetadata.getHeaders()))
+								.exchangeToFlux(this.handleResponse());
+					}
+					catch (IOException e) {
+						return Flux.error(e);
+					}
+				});
+	}
+
+	Function<ClientResponse, Flux<Payload>> handleResponse() {
+		return response -> {
+			try {
+				final HttpResponseMetadata httpResponseMetadata = new HttpResponseMetadata(response.statusCode(), response.headers().asHttpHeaders());
+				final byte[] httpResponseMetadataBytes = this.objectMapper.writeValueAsBytes(httpResponseMetadata);
+				final AtomicBoolean headerSent = new AtomicBoolean(false);
+				return response.bodyToFlux(ByteBuf.class)
+						.map(body -> DefaultPayload.create(body, headerSent.compareAndSet(false, true) ? Unpooled.copiedBuffer(httpResponseMetadataBytes) : Unpooled.EMPTY_BUFFER))
+						.switchIfEmpty(Mono.fromCallable(() -> DefaultPayload.create(new byte[] {}, httpResponseMetadataBytes)));
+			}
+			catch (JsonProcessingException e) {
+				throw new UncheckedIOException(e);
+			}
+		};
 	}
 
 	@Override

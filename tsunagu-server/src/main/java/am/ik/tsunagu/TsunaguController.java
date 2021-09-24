@@ -5,20 +5,25 @@ import java.io.UncheckedIOException;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.Unpooled;
 import io.rsocket.Payload;
+import io.rsocket.core.RSocketClient;
 import io.rsocket.util.DefaultPayload;
+import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Signal;
 
 import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DataBufferUtils;
-import org.springframework.core.io.buffer.DefaultDataBufferFactory;
+import org.springframework.core.io.buffer.NettyDataBufferFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -37,22 +42,36 @@ public class TsunaguController {
 
 	private final ObjectMapper objectMapper;
 
-	private final DataBufferFactory dataBufferFactory = DefaultDataBufferFactory.sharedInstance;
+	private final NettyDataBufferFactory dataBufferFactory = new NettyDataBufferFactory(PooledByteBufAllocator.DEFAULT);
 
 	public TsunaguController(ObjectMapper objectMapper) {
 		this.objectMapper = objectMapper;
 	}
 
 	@RequestMapping(path = "**")
-	public Mono<ResponseEntity<?>> proxy(ServerHttpRequest request) {
-		final RSocketRequester requester = this.getRequester();
+	public Mono<ResponseEntity<?>> proxy(ServerHttpRequest request) throws Exception {
+		final RSocketClient rsocketClient = this.getRequester().rsocketClient();
 		final HttpRequestMetadata httpRequestMetadata = new HttpRequestMetadata(request.getMethod(), request.getURI(), request.getHeaders());
-		final Mono<Payload> requestPayload = Mono.fromCallable(() -> this.objectMapper.writeValueAsBytes(httpRequestMetadata))
-				.map(metadata -> DefaultPayload.create(new byte[] {}, metadata));
-		final Flux<Payload> responseStream = requester.rsocketClient().requestStream(requestPayload);
-		return responseStream.<ResponseEntity<?>>switchOnFirst((signal, flux) -> {
+		final byte[] metadata = this.objectMapper.writeValueAsBytes(httpRequestMetadata);
+		final Flux<Payload> responseStream;
+		if (httpRequestMetadata.hasBody()) {
+			final Flux<Payload> requestPayload = request.getBody()
+					.map(NettyDataBufferFactory::toByteBuf)
+					.map(data -> DefaultPayload.create(data, Unpooled.copiedBuffer(metadata)))
+					.switchIfEmpty(Mono.fromCallable(() -> DefaultPayload.create(new byte[] {}, metadata)));
+			responseStream = rsocketClient.requestChannel(requestPayload);
+		}
+		else {
+			final Mono<Payload> requestPayload = Mono.just(DefaultPayload.create(new byte[] {}, metadata));
+			responseStream = rsocketClient.requestStream(requestPayload);
+		}
+		return responseStream.switchOnFirst(this.handleResponse(httpRequestMetadata)).single();
+	}
+
+	BiFunction<Signal<? extends Payload>, Flux<Payload>, Publisher<? extends ResponseEntity<?>>> handleResponse(HttpRequestMetadata httpRequestMetadata) {
+		return (signal, flux) -> {
 			final byte[] httpResponseMetadataBytes = ByteBufUtil.getBytes(signal.get().metadata());
-			final Mono<DataBuffer> bodyMono = DataBufferUtils.join(flux.map(payload -> dataBufferFactory.wrap(payload.getData())));
+			final Mono<DataBuffer> bodyMono = DataBufferUtils.join(flux.map(payload -> dataBufferFactory.wrap(payload.data())));
 			try {
 				final HttpResponseMetadata httpResponseMetadata = this.objectMapper.readValue(httpResponseMetadataBytes, HttpResponseMetadata.class);
 				log.info("\nrequest:\t{}\nresponse:\t{}", httpRequestMetadata, httpResponseMetadata);
@@ -63,7 +82,7 @@ public class TsunaguController {
 			catch (IOException e) {
 				throw new UncheckedIOException(e);
 			}
-		}).single();
+		};
 	}
 
 	private RSocketRequester getRequester() {
