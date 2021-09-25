@@ -4,11 +4,13 @@ import reactor.core.publisher.Hooks;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.HttpHeaders;
 import org.springframework.nativex.hint.NativeHint;
 import org.springframework.nativex.hint.TypeHint;
 
 @SpringBootApplication
+@EnableConfigurationProperties(TsunaguProps.class)
 @NativeHint(options = {
 		"--enable-http",
 		"--enable-https",

@@ -16,10 +16,13 @@ public class TsunaguProps {
 
 	private final boolean preserveHost;
 
-	public TsunaguProps(URI remote, URI upstream, @DefaultValue("false") boolean preserveHost) {
+	private final String token;
+
+	public TsunaguProps(URI remote, URI upstream, @DefaultValue("false") boolean preserveHost, String token) {
 		this.remote = fixPort(remote);
 		this.upstream = fixPort(upstream);
 		this.preserveHost = preserveHost;
+		this.token = token;
 	}
 
 	public URI getRemote() {
@@ -32,6 +35,10 @@ public class TsunaguProps {
 
 	public boolean isPreserveHost() {
 		return preserveHost;
+	}
+
+	public String getToken() {
+		return token;
 	}
 
 	static URI fixPort(URI uri) {

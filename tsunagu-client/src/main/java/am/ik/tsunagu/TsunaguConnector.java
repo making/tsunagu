@@ -5,6 +5,7 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -32,6 +33,7 @@ import reactor.netty.http.client.HttpClient;
 import reactor.util.retry.Retry;
 
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.messaging.rsocket.RSocketRequester;
@@ -57,9 +59,11 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 
 	private final TsunaguProps props;
 
-	public TsunaguConnector(Builder requesterBuilder, WebClient.Builder webClientBuilder, TsunaguProps props, ObjectMapper objectMapper) throws SSLException {
-		this.objectMapper = objectMapper;
+	private final ConfigurableApplicationContext context;
+
+	public TsunaguConnector(Builder requesterBuilder, WebClient.Builder webClientBuilder, TsunaguProps props, ObjectMapper objectMapper, ConfigurableApplicationContext context) throws SSLException {
 		this.requester = requesterBuilder
+				.setupData(Map.of("token", props.getToken()))
 				.rsocketConnector(connector -> connector
 						.reconnect(Retry.fixedDelay(Long.MAX_VALUE, Duration.ofSeconds(1))
 								.doBeforeRetry(s -> log.info("Reconnect: {}", s)))
@@ -73,6 +77,15 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 				.build();
 		this.webSocketClient = new ReactorNettyWebSocketClient(httpClient);
 		this.props = props;
+		this.objectMapper = objectMapper;
+		this.context = context;
+	}
+
+	@Override
+	public Mono<Void> fireAndForget(Payload payload) {
+		log.error(payload.getDataUtf8());
+		return Mono.<Void>empty()
+				.doFinally(__ -> context.close());
 	}
 
 	@Override

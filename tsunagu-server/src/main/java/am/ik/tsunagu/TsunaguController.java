@@ -3,6 +3,8 @@ package am.ik.tsunagu;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Collections;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -51,8 +53,11 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 
 	private final NettyDataBufferFactory dataBufferFactory = new NettyDataBufferFactory(PooledByteBufAllocator.DEFAULT);
 
-	public TsunaguController(ObjectMapper objectMapper) {
+	private final TsunaguProps props;
+
+	public TsunaguController(ObjectMapper objectMapper, TsunaguProps props) {
 		this.objectMapper = objectMapper;
+		this.props = props;
 	}
 
 
@@ -103,7 +108,11 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 	}
 
 	@ConnectMapping
-	public void connect(RSocketRequester requester) {
+	public void connect(RSocketRequester requester, @org.springframework.messaging.handler.annotation.Payload Map<String, String> data) {
+		if (!Objects.equals(this.props.getToken(), data.get("token"))) {
+			requester.rsocketClient().fireAndForget(Mono.just(DefaultPayload.create("Token is wrong."))).subscribe();
+			return;
+		}
 		requester.rsocket()
 				.onClose()
 				.doFirst(() -> {
