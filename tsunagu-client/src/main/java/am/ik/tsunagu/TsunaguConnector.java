@@ -3,6 +3,7 @@ package am.ik.tsunagu;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -38,6 +39,8 @@ import org.springframework.messaging.rsocket.RSocketRequester.Builder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.socket.client.ReactorNettyWebSocketClient;
+import org.springframework.web.reactive.socket.client.WebSocketClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
 @Component
@@ -45,6 +48,8 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 	private final RSocketRequester requester;
 
 	private final WebClient webClient;
+
+	private final WebSocketClient webSocketClient;
 
 	private final Logger log = LoggerFactory.getLogger(TsunaguConnector.class);
 
@@ -62,9 +67,11 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 				.websocket(props.getRemote());
 		final SslContext sslContext = SslContextBuilder.forClient()
 				.trustManager(InsecureTrustManagerFactory.INSTANCE).build();
+		final HttpClient httpClient = HttpClient.create().secure(ssl -> ssl.sslContext(sslContext));
 		this.webClient = webClientBuilder
-				.clientConnector(new ReactorClientHttpConnector(HttpClient.create().secure(ssl -> ssl.sslContext(sslContext))))
+				.clientConnector(new ReactorClientHttpConnector(httpClient))
 				.build();
+		this.webSocketClient = new ReactorNettyWebSocketClient(httpClient);
 		this.props = props;
 	}
 
@@ -98,6 +105,23 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 								.uri(this.props.getUpstream())
 								.build()
 								.toUri();
+						if (httpRequestMetadata.isWebSocketRequest()) {
+							final HttpHeaders httpHeaders = new HttpHeaders();
+							this.copyHeaders(httpRequestMetadata).accept(httpHeaders);
+							return Flux.create(sink ->
+									this.webSocketClient.execute(uri, httpHeaders,
+													session -> session
+															.send(flux.map(payload -> session.binaryMessage(factory -> factory.wrap(payload.getData()))))
+															.and(session.receive()
+																	.doOnNext(message -> {
+																		final ByteBuffer data = message.getPayload().asByteBuffer();
+																		final ByteBuffer metadata = ByteBuffer.allocate(1).put((byte) message.getType().ordinal()).flip();
+																		sink.next(DefaultPayload.create(data, metadata));
+																	})
+																	.doOnError(sink::error)
+																	.doOnComplete(sink::complete)))
+											.subscribe());
+						}
 						return this.webClient.method(httpRequestMetadata.getMethod())
 								.uri(uri)
 								.body(flux.map(Payload::data), ByteBuf.class)
@@ -113,7 +137,7 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 	Consumer<HttpHeaders> copyHeaders(HttpRequestMetadata httpRequestMetadata) {
 		return headers -> {
 			headers.addAll(httpRequestMetadata.getHeaders());
-			if (this.props.isPreserveHost()) {
+			if (!this.props.isPreserveHost()) {
 				headers.remove(HttpHeaders.HOST);
 			}
 		};
