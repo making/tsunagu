@@ -14,7 +14,6 @@ import java.util.function.Function;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.buffer.ByteBufUtil;
-import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.rsocket.Payload;
 import io.rsocket.core.RSocketClient;
@@ -27,11 +26,10 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Signal;
 
 import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.core.io.buffer.NettyDataBufferFactory;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.rsocket.RSocketRequester;
 import org.springframework.messaging.rsocket.annotation.ConnectMapping;
@@ -51,8 +49,6 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 
 	private final ObjectMapper objectMapper;
 
-	private final NettyDataBufferFactory dataBufferFactory = new NettyDataBufferFactory(PooledByteBufAllocator.DEFAULT);
-
 	private final TsunaguProps props;
 
 	public TsunaguController(ObjectMapper objectMapper, TsunaguProps props) {
@@ -70,7 +66,7 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 	}
 
 	@RequestMapping(path = "**")
-	public Mono<ResponseEntity<?>> proxy(ServerHttpRequest request) throws Exception {
+	public Mono<Void> proxy(ServerHttpRequest request, ServerHttpResponse response) throws Exception {
 		final RSocketClient rsocketClient = this.getRequester().rsocketClient();
 		final HttpRequestMetadata httpRequestMetadata = new HttpRequestMetadata(request.getMethod(), request.getURI(), request.getHeaders());
 		final byte[] metadata = this.objectMapper.writeValueAsBytes(httpRequestMetadata);
@@ -87,19 +83,19 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 			final Mono<Payload> requestPayload = Mono.just(DefaultPayload.create(new byte[] {}, metadata));
 			responseStream = rsocketClient.requestStream(requestPayload);
 		}
-		return responseStream.switchOnFirst(this.handleResponse(httpRequestMetadata)).single();
+		return responseStream.switchOnFirst(this.handleResponse(httpRequestMetadata, response)).then();
 	}
 
-	BiFunction<Signal<? extends Payload>, Flux<Payload>, Publisher<? extends ResponseEntity<?>>> handleResponse(HttpRequestMetadata httpRequestMetadata) {
+	BiFunction<Signal<? extends Payload>, Flux<Payload>, Publisher<? extends Void>> handleResponse(HttpRequestMetadata httpRequestMetadata, ServerHttpResponse response) {
 		return (signal, flux) -> {
 			final byte[] httpResponseMetadataBytes = ByteBufUtil.getBytes(signal.get().metadata());
-			final Mono<DataBuffer> bodyMono = DataBufferUtils.join(flux.map(payload -> dataBufferFactory.wrap(payload.data())));
+			final Flux<DataBuffer> body = flux.map(payload -> response.bufferFactory().wrap(payload.getData()));
 			try {
 				final HttpResponseMetadata httpResponseMetadata = this.objectMapper.readValue(httpResponseMetadataBytes, HttpResponseMetadata.class);
 				log.info("\nrequest:\t{}\nresponse:\t{}", httpRequestMetadata, httpResponseMetadata);
-				return bodyMono.map(body -> ResponseEntity.status(httpResponseMetadata.getStatus())
-						.headers(httpResponseMetadata.getHeaders())
-						.body(body));
+				response.setStatusCode(httpResponseMetadata.getStatus());
+				response.getHeaders().addAll(httpResponseMetadata.getHeaders());
+				return response.writeWith(body);
 			}
 			catch (IOException e) {
 				throw new UncheckedIOException(e);
