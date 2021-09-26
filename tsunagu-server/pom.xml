@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
 		<groupId>org.springframework.boot</groupId>
@@ -18,6 +19,8 @@
 		<repackage.classifier/>
 		<spring-cloud.version>2020.0.3</spring-cloud.version>
 		<spring-native.version>0.10.3</spring-native.version>
+		<start-class>am.ik.tsunagu.TsunaguServerApplication</start-class>
+		<native-image-args/>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -33,14 +36,11 @@
 			<artifactId>spring-boot-starter-webflux</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.springframework.cloud</groupId>
-			<artifactId>spring-cloud-gateway-webflux</artifactId>
-		</dependency>
-		<dependency>
 			<groupId>org.springframework.experimental</groupId>
 			<artifactId>spring-native</artifactId>
 			<version>${spring-native.version}</version>
 		</dependency>
+
 		<dependency>
 			<groupId>io.micrometer</groupId>
 			<artifactId>micrometer-registry-prometheus</artifactId>
@@ -133,6 +133,12 @@
 
 	<profiles>
 		<profile>
+			<id>mostly-static</id>
+			<properties>
+				<native-image-args>-H:+StaticExecutableWithDynamicLibC</native-image-args>
+			</properties>
+		</profile>
+		<profile>
 			<id>native</id>
 			<properties>
 				<repackage.classifier>exec</repackage.classifier>
@@ -166,6 +172,37 @@
 								<goals>
 									<goal>build</goal>
 								</goals>
+							</execution>
+						</executions>
+						<configuration>
+							<imageName>${start-class}</imageName>
+							<buildArgs>${native-image-args}</buildArgs>
+						</configuration>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-antrun-plugin</artifactId>
+						<version>3.0.0</version>
+						<executions>
+							<execution>
+								<id>zip</id>
+								<phase>package</phase>
+								<goals>
+									<goal>run</goal>
+								</goals>
+								<configuration>
+									<target>
+										<echo message="web: ./${start-class}"
+											  file="${project.build.directory}/Procfile"/>
+										<zip destfile="${project.build.directory}/${project.artifactId}-${project.version}.zip">
+											<zipfileset dir="${project.build.directory}"
+														filemode="755"
+														includes="${start-class}"/>
+											<fileset dir="${project.build.directory}"
+													 includes="Procfile"/>
+										</zip>
+									</target>
+								</configuration>
 							</execution>
 						</executions>
 					</plugin>
