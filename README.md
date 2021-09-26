@@ -73,7 +73,7 @@ docker run --rm -v $PWD/tsunagu-client/target:/workspace paketobuildpacks/run:ti
 ```
 
 
-Build and public docker images
+Build and publish docker images
 
 ```
 pack build ghcr.io/making/tsunagu-server -p tsunagu-server/target/tsunagu-server-0.0.1-SNAPSHOT.zip --builder paketobuildpacks/builder:tiny --publish
