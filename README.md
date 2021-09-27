@@ -6,6 +6,8 @@ Tsunagu is something like ngrok using RSocket.
 
 ![image](https://user-images.githubusercontent.com/106908/134799022-321d86e2-6584-4cea-a105-e5a4b0e8ff1a.png)
 
+> Depending on your configuration, Tsunagu may disclose unintended information to the internet. Use at your own risk.
+
 ### Build and run Tsunagu server and client
 
 ```
