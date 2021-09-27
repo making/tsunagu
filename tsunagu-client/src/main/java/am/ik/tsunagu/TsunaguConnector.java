@@ -6,9 +6,9 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import javax.net.ssl.SSLException;
 
@@ -22,6 +22,8 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.rsocket.Payload;
 import io.rsocket.RSocket;
+import io.rsocket.metadata.CompositeMetadata;
+import io.rsocket.metadata.CompositeMetadata.Entry;
 import io.rsocket.util.DefaultPayload;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -36,6 +38,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.messaging.rsocket.RSocketRequester;
 import org.springframework.messaging.rsocket.RSocketRequester.Builder;
 import org.springframework.stereotype.Component;
@@ -61,7 +64,7 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 
 	private final ConfigurableApplicationContext context;
 
-	public TsunaguConnector(Builder requesterBuilder, WebClient.Builder webClientBuilder, TsunaguProps props, ObjectMapper objectMapper, ConfigurableApplicationContext context) throws SSLException {
+	public TsunaguConnector(Builder requesterBuilder, WebClient.Builder webClientBuilder, TsunaguProps props, ConfigurableApplicationContext context) throws SSLException {
 		this.requester = requesterBuilder
 				.setupData(Map.of("token", props.getToken()))
 				.rsocketConnector(connector -> connector
@@ -77,7 +80,7 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 				.build();
 		this.webSocketClient = new ReactorNettyWebSocketClient(httpClient);
 		this.props = props;
-		this.objectMapper = objectMapper;
+		this.objectMapper = Jackson2ObjectMapperBuilder.cbor().build();
 		this.context = context;
 	}
 
@@ -88,11 +91,17 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 				.doFinally(__ -> context.close());
 	}
 
+	HttpRequestMetadata getHttpRequestMetadata(Payload payload) throws IOException {
+		final CompositeMetadata entries = new CompositeMetadata(payload.metadata(), true);
+		final Map<String, ByteBuf> metadataMap = entries.stream().collect(Collectors.toUnmodifiableMap(Entry::getMimeType, Entry::getContent));
+		final byte[] httpRequestMetadataBytes = ByteBufUtil.getBytes(metadataMap.get("application/cbor"));
+		return this.objectMapper.readValue(httpRequestMetadataBytes, HttpRequestMetadata.class);
+	}
+
 	@Override
 	public Flux<Payload> requestStream(Payload payload) {
 		try {
-			final byte[] httpRequestMetadataBytes = ByteBufUtil.getBytes(payload.metadata());
-			final HttpRequestMetadata httpRequestMetadata = this.objectMapper.readValue(httpRequestMetadataBytes, HttpRequestMetadata.class);
+			final HttpRequestMetadata httpRequestMetadata = this.getHttpRequestMetadata(payload);
 			final URI uri = UriComponentsBuilder.fromUri(httpRequestMetadata.getUri())
 					.uri(this.props.getUpstream())
 					.build()
@@ -103,7 +112,7 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 					.exchangeToFlux(this.handleResponse());
 		}
 		catch (IOException e) {
-			return Flux.error(e);
+			return Flux.<Payload>error(e).log("requestStream");
 		}
 	}
 
@@ -111,38 +120,43 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 	public Flux<Payload> requestChannel(Publisher<Payload> payloads) {
 		return Flux.from(payloads)
 				.switchOnFirst((signal, flux) -> {
-					try {
-						final byte[] httpRequestMetadataBytes = ByteBufUtil.getBytes(signal.get().metadata());
-						final HttpRequestMetadata httpRequestMetadata = this.objectMapper.readValue(httpRequestMetadataBytes, HttpRequestMetadata.class);
-						final URI uri = UriComponentsBuilder.fromUri(httpRequestMetadata.getUri())
-								.uri(this.props.getUpstream())
-								.build()
-								.toUri();
-						if (httpRequestMetadata.isWebSocketRequest()) {
-							final HttpHeaders httpHeaders = new HttpHeaders();
-							this.copyHeaders(httpRequestMetadata).accept(httpHeaders);
-							return Flux.create(sink ->
-									this.webSocketClient.execute(uri, httpHeaders,
-													session -> session
-															.send(flux.map(payload -> session.binaryMessage(factory -> factory.wrap(payload.getData()))))
-															.and(session.receive()
-																	.doOnNext(message -> {
-																		final ByteBuffer data = message.getPayload().asByteBuffer();
-																		final ByteBuffer metadata = ByteBuffer.allocate(1).put((byte) message.getType().ordinal()).flip();
-																		sink.next(DefaultPayload.create(data, metadata));
-																	})
-																	.doOnError(sink::error)
-																	.doOnComplete(sink::complete)))
-											.subscribe());
+					if (signal.hasValue()) {
+						try {
+							final HttpRequestMetadata httpRequestMetadata = this.getHttpRequestMetadata(signal.get());
+							final URI uri = UriComponentsBuilder.fromUri(httpRequestMetadata.getUri())
+									.uri(this.props.getUpstream())
+									.build()
+									.toUri();
+							if (httpRequestMetadata.isWebSocketRequest()) {
+								final HttpHeaders httpHeaders = new HttpHeaders();
+								this.copyHeaders(httpRequestMetadata).accept(httpHeaders);
+								return Flux.create(sink -> sink.onDispose(this.webSocketClient.execute(uri, httpHeaders,
+										session -> session
+												.send(flux.map(payload -> session.binaryMessage(factory -> factory.wrap(payload.getData()))))
+												.and(session.receive().doOnNext(message -> {
+															final ByteBuffer payload = message.getPayload().asByteBuffer();
+															// the first 1 byte of the data is the message type
+															final ByteBuffer data = ByteBuffer.allocate(1 + payload.remaining())
+																	.put((byte) message.getType().ordinal())
+																	.put(payload)
+																	.flip();
+															sink.next(DefaultPayload.create(data));
+														})
+														.doOnError(sink::error)
+														.doOnComplete(sink::complete))).subscribe()));
+							}
+							return this.webClient.method(httpRequestMetadata.getMethod())
+									.uri(uri)
+									.body(flux.map(Payload::data), ByteBuf.class)
+									.headers(this.copyHeaders(httpRequestMetadata))
+									.exchangeToFlux(this.handleResponse());
 						}
-						return this.webClient.method(httpRequestMetadata.getMethod())
-								.uri(uri)
-								.body(flux.map(Payload::data), ByteBuf.class)
-								.headers(this.copyHeaders(httpRequestMetadata))
-								.exchangeToFlux(this.handleResponse());
+						catch (IOException e) {
+							return Flux.<Payload>error(e).log("requestChannel");
+						}
 					}
-					catch (IOException e) {
-						return Flux.error(e);
+					else {
+						return flux.log("wth");
 					}
 				});
 	}
@@ -161,10 +175,10 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 			try {
 				final HttpResponseMetadata httpResponseMetadata = new HttpResponseMetadata(response.statusCode(), response.headers().asHttpHeaders());
 				final byte[] httpResponseMetadataBytes = this.objectMapper.writeValueAsBytes(httpResponseMetadata);
-				final AtomicBoolean headerSent = new AtomicBoolean(false);
-				return response.bodyToFlux(ByteBuf.class)
-						.map(body -> DefaultPayload.create(body, headerSent.compareAndSet(false, true) ? Unpooled.copiedBuffer(httpResponseMetadataBytes) : Unpooled.EMPTY_BUFFER))
-						.switchIfEmpty(Mono.fromCallable(() -> DefaultPayload.create(new byte[] {}, httpResponseMetadataBytes)));
+				return Mono.just(DefaultPayload.create(httpResponseMetadataBytes)) // send response header first
+						.concatWith(response.bodyToFlux(ByteBuf.class) // then send response body
+								.map(DefaultPayload::create)
+								.switchIfEmpty(Mono.fromCallable(() -> DefaultPayload.create(Unpooled.EMPTY_BUFFER))));
 			}
 			catch (JsonProcessingException e) {
 				throw new UncheckedIOException(e);
