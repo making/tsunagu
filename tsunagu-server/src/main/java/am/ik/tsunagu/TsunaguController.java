@@ -96,7 +96,7 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 					responseHeaders.remove(HttpHeaders.TRANSFER_ENCODING);
 					return response.writeWith(body)
 							.doFinally(__ -> {
-								log.info("{}\t{}\t{}", httpRequestMetadata.getMethod(), httpResponseMetadata.getStatus().value(), httpRequestMetadata.getUri());
+								log.info("{}\t{} {}", httpRequestMetadata.getMethod(), httpResponseMetadata.getStatus().value(), httpRequestMetadata.getUri());
 							});
 				}
 				catch (IOException e) {
@@ -116,15 +116,15 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 		requester.rsocket()
 				.onClose()
 				.doFirst(() -> {
-					log.info("Client: {} connected", requester);
+					log.info("Client: Connected ({})", requester);
 					requesters.add(requester);
 				})
 				.doOnError(error -> {
-					log.warn("Client: " + requester + " error", error);
+					log.warn("Client: Error (" + requester + ")", error);
 				})
 				.doFinally(consumer -> {
 					requesters.remove(requester);
-					log.info("Client: {} disconnected", requesters);
+					log.info("Client: Disconnected ({})", requester);
 				})
 				.subscribe();
 	}
@@ -142,7 +142,7 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 					.route("_")
 					.metadata(httpRequestMetadata, MediaType.APPLICATION_CBOR)
 					.data(session.receive()
-							.doFirst(() -> log.info("{}\t101\t{}", httpRequestMetadata.getMethod(), httpRequestMetadata.getUri()))
+							.doFirst(() -> log.info("{}\t101 {}", httpRequestMetadata.getMethod(), httpRequestMetadata.getUri()))
 							.map(message -> DataBufferUtils.retain(message.getPayload())), DataBuffer.class)
 					.retrieveFlux(DataBuffer.class);
 			final Flux<WebSocketMessage> outbound = responseStream.map(buffer -> {

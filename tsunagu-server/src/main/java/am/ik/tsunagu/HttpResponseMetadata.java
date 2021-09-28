@@ -11,8 +11,8 @@ public class HttpResponseMetadata {
 	private final HttpHeaders headers;
 
 	public HttpResponseMetadata(
-			@JsonProperty("status") HttpStatus status,
-			@JsonProperty("headers") HttpHeaders headers) {
+			@JsonProperty("s") HttpStatus status,
+			@JsonProperty("h") HttpHeaders headers) {
 		this.status = status;
 		this.headers = headers;
 	}

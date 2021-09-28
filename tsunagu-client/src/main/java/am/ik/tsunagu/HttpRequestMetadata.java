@@ -18,9 +18,9 @@ public class HttpRequestMetadata {
 	private final HttpHeaders headers;
 
 	public HttpRequestMetadata(
-			@JsonProperty("method") HttpMethod method,
-			@JsonProperty("uri") URI uri,
-			@JsonProperty("headers") HttpHeaders headers) {
+			@JsonProperty("m") HttpMethod method,
+			@JsonProperty("u") URI uri,
+			@JsonProperty("h") HttpHeaders headers) {
 		this.method = method;
 		this.uri = uri;
 		this.headers = headers;
