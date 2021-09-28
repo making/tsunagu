@@ -6,7 +6,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.6.0-M1</version>
+		<version>2.5.5</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.example</groupId>
@@ -17,8 +17,8 @@
 	<properties>
 		<java.version>11</java.version>
 		<repackage.classifier/>
-		<spring-cloud.version>2021.0.0-M1</spring-cloud.version>
-		<spring-native.version>0.10.3</spring-native.version>
+		<spring-cloud.version>2020.0.4</spring-cloud.version>
+		<spring-native.version>0.10.4</spring-native.version>
 		<start-class>am.ik.tsunagu.TsunaguServerApplication</start-class>
 		<native-image-args/>
 	</properties>
@@ -34,14 +34,6 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webflux</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.cloud</groupId>
-			<artifactId>spring-cloud-starter-sleuth</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.cloud</groupId>
-			<artifactId>spring-cloud-sleuth-zipkin</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.experimental</groupId>
