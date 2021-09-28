@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+import io.netty.handler.logging.LogLevel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
@@ -32,6 +33,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
+import reactor.netty.transport.logging.AdvancedByteBufFormat;
 import reactor.util.retry.Retry;
 
 import org.springframework.boot.CommandLineRunner;
@@ -74,7 +76,8 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 				.websocket(props.getRemote());
 		final SslContext sslContext = SslContextBuilder.forClient()
 				.trustManager(InsecureTrustManagerFactory.INSTANCE).build();
-		final HttpClient httpClient = HttpClient.create().secure(ssl -> ssl.sslContext(sslContext));
+		final HttpClient httpClient = HttpClient.create()
+				.wiretap("tcpdump", LogLevel.INFO, AdvancedByteBufFormat.SIMPLE).secure(ssl -> ssl.sslContext(sslContext));
 		this.webClient = webClientBuilder
 				.clientConnector(new ReactorClientHttpConnector(httpClient))
 				.build();
@@ -109,7 +112,10 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 			return this.webClient.method(httpRequestMetadata.getMethod())
 					.uri(uri)
 					.headers(this.copyHeaders(httpRequestMetadata))
-					.exchangeToFlux(this.handleResponse());
+					.exchangeToFlux(this.handleResponse())
+					.doOnCancel(() -> {
+						log.info("Cancel!!");
+					});
 		}
 		catch (IOException e) {
 			return Flux.<Payload>error(e).log("requestStream");
@@ -199,9 +205,10 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 		this.requester
 				.route("version_check")
 				.retrieveMono(String.class)
-				.log("versionCheck")
+				.doOnRequest(__ -> log.info("Connecting to {}", this.props.getRemote()))
 				.retryWhen(Retry.fixedDelay(Long.MAX_VALUE, Duration.ofSeconds(1))
 						.doBeforeRetry(s -> log.info("VersionCheck Retry: {}", s)))
+				.doOnSuccess(s -> log.info("Connected ({})", s))
 				.subscribe();
 	}
 
