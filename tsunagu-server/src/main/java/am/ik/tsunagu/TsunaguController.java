@@ -3,13 +3,17 @@ package am.ik.tsunagu;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.rsocket.util.DefaultPayload;
@@ -58,8 +62,12 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 		if (this.requesters.isEmpty()) {
 			throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "No requester found.");
 		}
-		// TODO Load Balancing
-		return this.requesters.iterator().next();
+		if (requesters.size() == 1) {
+			return requesters.iterator().next();
+		}
+		final List<RSocketRequester> list = new ArrayList<>(requesters);
+		Collections.shuffle(list, ThreadLocalRandom.current());
+		return list.get(0);
 	}
 
 	@RequestMapping(path = "**")
