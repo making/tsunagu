@@ -109,7 +109,7 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 			return this.webClient.method(httpRequestMetadata.getMethod())
 					.uri(uri)
 					.headers(this.copyHeaders(httpRequestMetadata))
-					.exchangeToFlux(this.handleResponse());
+					.exchangeToFlux(this.handleResponse(httpRequestMetadata));
 		}
 		catch (IOException e) {
 			return Flux.<Payload>error(e).log("requestStream");
@@ -130,10 +130,10 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 							if (httpRequestMetadata.isWebSocketRequest()) {
 								final HttpHeaders httpHeaders = new HttpHeaders();
 								this.copyHeaders(httpRequestMetadata).accept(httpHeaders);
+								log.info("{}\t101 {}", httpRequestMetadata.getMethod(), httpRequestMetadata.getUri());
 								return Flux.create(sink -> sink.onDispose(this.webSocketClient.execute(uri, httpHeaders,
 										session -> session
-												.send(flux.map(payload -> session.binaryMessage(factory -> factory.wrap(payload.getData()))))
-												.and(session.receive().doOnNext(message -> {
+												.send(flux.map(payload -> session.binaryMessage(factory -> factory.wrap(payload.getData())))).and(session.receive().doOnNext(message -> {
 															final ByteBuffer payload = message.getPayload().asByteBuffer();
 															// the first 1 byte of the data is the message type
 															final ByteBuffer data = ByteBuffer.allocate(1 + payload.remaining())
@@ -149,7 +149,7 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 									.uri(uri)
 									.body(flux.map(Payload::data), ByteBuf.class)
 									.headers(this.copyHeaders(httpRequestMetadata))
-									.exchangeToFlux(this.handleResponse());
+									.exchangeToFlux(this.handleResponse(httpRequestMetadata));
 						}
 						catch (IOException e) {
 							return Flux.<Payload>error(e).log("requestChannel");
@@ -170,13 +170,16 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 		};
 	}
 
-	Function<ClientResponse, Flux<Payload>> handleResponse() {
+	Function<ClientResponse, Flux<Payload>> handleResponse(HttpRequestMetadata httpRequestMetadata) {
 		return response -> {
 			try {
 				final HttpResponseMetadata httpResponseMetadata = new HttpResponseMetadata(response.statusCode(), response.headers().asHttpHeaders());
 				final byte[] httpResponseMetadataBytes = this.objectMapper.writeValueAsBytes(httpResponseMetadata);
 				return Mono.just(DefaultPayload.create(httpResponseMetadataBytes)) // send response header first
 						.concatWith(response.bodyToFlux(ByteBuf.class) // then send response body
+								.doFinally(__ -> {
+									log.info("{}\t{} {}", httpRequestMetadata.getMethod(), httpResponseMetadata.getStatus().value(), httpRequestMetadata.getUri());
+								})
 								.map(DefaultPayload::create)
 								.switchIfEmpty(Mono.fromCallable(() -> DefaultPayload.create(Unpooled.EMPTY_BUFFER))));
 			}
