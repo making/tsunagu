@@ -22,6 +22,7 @@ import reactor.core.publisher.Signal;
 
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
@@ -89,7 +90,10 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 				try {
 					final HttpResponseMetadata httpResponseMetadata = this.objectMapper.readValue(httpResponseMetadataBytes, HttpResponseMetadata.class);
 					response.setStatusCode(httpResponseMetadata.getStatus());
-					response.getHeaders().addAll(httpResponseMetadata.getHeaders());
+					final HttpHeaders responseHeaders = response.getHeaders();
+					responseHeaders.addAll(httpResponseMetadata.getHeaders());
+					// https://stackoverflow.com/a/61493578/5861829
+					responseHeaders.remove(HttpHeaders.TRANSFER_ENCODING);
 					return response.writeWith(body)
 							.doFinally(__ -> {
 								log.info("{}\t{}\t{}", httpRequestMetadata.getMethod(), httpResponseMetadata.getStatus().value(), httpRequestMetadata.getUri());
