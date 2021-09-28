@@ -124,7 +124,7 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 		requester.rsocket()
 				.onClose()
 				.doFirst(() -> {
-					log.info("Client: Connected ({})", requester);
+					log.info("Client: Connected ({}) clients=[{}]", requester, requesters);
 					requesters.add(requester);
 				})
 				.doOnError(error -> {
@@ -132,7 +132,7 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 				})
 				.doFinally(consumer -> {
 					requesters.remove(requester);
-					log.info("Client: Disconnected ({})", requester);
+					log.info("Client: Disconnected ({}) clients=[{}]", requester, requesters);
 				})
 				.subscribe();
 	}
