@@ -13,7 +13,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.rsocket.util.DefaultPayload;
@@ -104,7 +103,9 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 					responseHeaders.remove(HttpHeaders.TRANSFER_ENCODING);
 					return response.writeWith(body)
 							.doFinally(__ -> {
-								log.info("{}\t{} {}", httpRequestMetadata.getMethod(), httpResponseMetadata.getStatus().value(), httpRequestMetadata.getUri());
+								if (log.isInfoEnabled()) {
+									log.info("{}\t{} {} {}", httpRequestMetadata.getMethod(), httpResponseMetadata.getStatus().value(), httpRequestMetadata.getUri(), httpRequestMetadata.getHeaders().getFirst(HttpHeaders.USER_AGENT));
+								}
 							});
 				}
 				catch (IOException e) {
@@ -124,15 +125,15 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 		requester.rsocket()
 				.onClose()
 				.doFirst(() -> {
-					log.info("Client: Connected ({}) clients=[{}]", requester, requesters);
 					requesters.add(requester);
+					log.info("Client: Connected ({}) clients={}", requester, requesters);
 				})
 				.doOnError(error -> {
 					log.warn("Client: Error (" + requester + ")", error);
 				})
 				.doFinally(consumer -> {
 					requesters.remove(requester);
-					log.info("Client: Disconnected ({}) clients=[{}]", requester, requesters);
+					log.info("Client: Disconnected ({}) clients={}", requester, requesters);
 				})
 				.subscribe();
 	}
@@ -150,7 +151,11 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 					.route("_")
 					.metadata(httpRequestMetadata, MediaType.APPLICATION_CBOR)
 					.data(session.receive()
-							.doFirst(() -> log.info("{}\t101 {}", httpRequestMetadata.getMethod(), httpRequestMetadata.getUri()))
+							.doFirst(() -> {
+								if (log.isInfoEnabled()) {
+									log.info("{}\t101 {} {}", httpRequestMetadata.getMethod(), httpRequestMetadata.getUri(), httpRequestMetadata.getHeaders().getFirst(HttpHeaders.USER_AGENT));
+								}
+							})
 							.map(message -> DataBufferUtils.retain(message.getPayload())), DataBuffer.class)
 					.retrieveFlux(DataBuffer.class);
 			final Flux<WebSocketMessage> outbound = responseStream.map(buffer -> {

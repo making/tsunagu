@@ -130,7 +130,9 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 							if (httpRequestMetadata.isWebSocketRequest()) {
 								final HttpHeaders httpHeaders = new HttpHeaders();
 								this.copyHeaders(httpRequestMetadata).accept(httpHeaders);
-								log.info("{}\t101 {}", httpRequestMetadata.getMethod(), httpRequestMetadata.getUri());
+								if (log.isInfoEnabled()) {
+									log.info("{}\t101 {} {}", httpRequestMetadata.getMethod(), httpRequestMetadata.getUri(), httpRequestMetadata.getHeaders().getFirst(HttpHeaders.USER_AGENT));
+								}
 								return Flux.create(sink -> sink.onDispose(this.webSocketClient.execute(uri, httpHeaders,
 										session -> session
 												.send(flux.map(payload -> session.binaryMessage(factory -> factory.wrap(payload.getData())))).and(session.receive().doOnNext(message -> {
@@ -178,7 +180,9 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 				return Mono.just(DefaultPayload.create(httpResponseMetadataBytes)) // send response header first
 						.concatWith(response.bodyToFlux(ByteBuf.class) // then send response body
 								.doFinally(__ -> {
-									log.info("{}\t{} {}", httpRequestMetadata.getMethod(), httpResponseMetadata.getStatus().value(), httpRequestMetadata.getUri());
+									if (log.isInfoEnabled()) {
+										log.info("{}\t{} {} {}", httpRequestMetadata.getMethod(), httpResponseMetadata.getStatus().value(), httpRequestMetadata.getUri(), httpRequestMetadata.getHeaders().getFirst(HttpHeaders.USER_AGENT));
+									}
 								})
 								.map(DefaultPayload::create)
 								.switchIfEmpty(Mono.fromCallable(() -> DefaultPayload.create(Unpooled.EMPTY_BUFFER))));
