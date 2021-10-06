@@ -32,6 +32,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
+import reactor.netty.http.client.WebsocketClientSpec;
 import reactor.util.retry.Retry;
 
 import org.springframework.boot.CommandLineRunner;
@@ -78,7 +79,9 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 		this.webClient = webClientBuilder
 				.clientConnector(new ReactorClientHttpConnector(httpClient))
 				.build();
-		this.webSocketClient = new ReactorNettyWebSocketClient(httpClient);
+		this.webSocketClient = new ReactorNettyWebSocketClient(httpClient,
+				() -> WebsocketClientSpec.builder()
+						.maxFramePayloadLength(props.getWebSocketMaxFramePayloadLength()));
 		this.props = props;
 		this.objectMapper = Jackson2ObjectMapperBuilder.cbor().build();
 		this.context = context;
@@ -104,7 +107,7 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 			final HttpRequestMetadata httpRequestMetadata = this.getHttpRequestMetadata(payload);
 			final URI uri = UriComponentsBuilder.fromUri(httpRequestMetadata.getUri())
 					.uri(this.props.getUpstream())
-					.build()
+					.build(false)
 					.toUri();
 			return this.webClient.method(httpRequestMetadata.getMethod())
 					.uri(uri)
@@ -125,7 +128,7 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 							final HttpRequestMetadata httpRequestMetadata = this.getHttpRequestMetadata(signal.get());
 							final URI uri = UriComponentsBuilder.fromUri(httpRequestMetadata.getUri())
 									.uri(this.props.getUpstream())
-									.build()
+									.build(false)
 									.toUri();
 							if (httpRequestMetadata.isWebSocketRequest()) {
 								final HttpHeaders httpHeaders = new HttpHeaders();

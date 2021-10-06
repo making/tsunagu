@@ -18,11 +18,14 @@ public class TsunaguProps {
 
 	private final String token;
 
-	public TsunaguProps(URI remote, URI upstream, @DefaultValue("false") boolean preserveHost, String token) {
+	private final Integer webSocketMaxFramePayloadLength;
+
+	public TsunaguProps(URI remote, URI upstream, @DefaultValue("false") boolean preserveHost, String token, @DefaultValue("655350") Integer webSocketMaxFramePayloadLength) {
 		this.remote = fixPort(remote);
 		this.upstream = fixPort(upstream);
 		this.preserveHost = preserveHost;
 		this.token = token;
+		this.webSocketMaxFramePayloadLength = webSocketMaxFramePayloadLength;
 	}
 
 	public URI getRemote() {
@@ -39,6 +42,10 @@ public class TsunaguProps {
 
 	public String getToken() {
 		return token;
+	}
+
+	public Integer getWebSocketMaxFramePayloadLength() {
+		return webSocketMaxFramePayloadLength;
 	}
 
 	static URI fixPort(URI uri) {
