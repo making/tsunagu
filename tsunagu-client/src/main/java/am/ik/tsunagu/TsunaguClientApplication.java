@@ -18,17 +18,21 @@ import org.springframework.nativex.hint.TypeHint;
 		},
 		types = {
 				@TypeHint(
-						types = { HttpHeaders.class, HttpRequestMetadata.class, HttpResponseMetadata.class },
-						typeNames = {
-								"org.springframework.cloud.sleuth.autoconfig.zipkin2.ZipkinActiveMqSenderConfiguration",
-								"org.springframework.cloud.sleuth.autoconfig.zipkin2.ZipkinRabbitSenderConfiguration",
-								"org.springframework.cloud.sleuth.autoconfig.zipkin2.ZipkinKafkaSenderConfiguration"
-						}
+						types = { HttpHeaders.class, HttpRequestMetadata.class, HttpResponseMetadata.class }
 				)
 		})
 public class TsunaguClientApplication {
 
 	public static void main(String[] args) {
+		System.out.println(" _______\n"
+				+ "|__   __|\n"
+				+ "   | |___ _   _ _ __   __ _  __ _ _   _\n"
+				+ "   | / __| | | | '_ \\ / _` |/ _` | | | |\n"
+				+ "   | \\__ \\ |_| | | | | (_| | (_| | |_| |\n"
+				+ "   |_|___/\\__,_|_| |_|\\__,_|\\__, |\\__,_|\n"
+				+ "                             __/ |\n"
+				+ "                            |___/\n"
+				+ " :: Tsunagu Client ::\n");
 		SpringApplication.run(TsunaguClientApplication.class, args);
 	}
 
