@@ -2,6 +2,7 @@ package am.ik.tsunagu;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -71,7 +72,8 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 
 	@RequestMapping(path = "**")
 	public Mono<Void> proxy(ServerHttpRequest request, ServerHttpResponse response) throws Exception {
-		final HttpRequestMetadata httpRequestMetadata = new HttpRequestMetadata(request.getMethod(), request.getURI(), request.getHeaders());
+		final HttpHeaders httpHeaders = setForwardHeaders(request.getURI(), request.getHeaders());
+		final HttpRequestMetadata httpRequestMetadata = new HttpRequestMetadata(request.getMethod(), request.getURI(), httpHeaders);
 		final Flux<DataBuffer> responseStream;
 		if (httpRequestMetadata.hasBody()) {
 			responseStream = this.getRequester()
@@ -146,7 +148,8 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 	@Override
 	public WebSocketHandler apply(ServerHttpRequest request) {
 		return (session) -> {
-			final HttpRequestMetadata httpRequestMetadata = new HttpRequestMetadata(request.getMethod(), request.getURI(), request.getHeaders());
+			final HttpHeaders httpHeaders = setForwardHeaders(request.getURI(), request.getHeaders());
+			final HttpRequestMetadata httpRequestMetadata = new HttpRequestMetadata(request.getMethod(), request.getURI(), httpHeaders);
 			final Flux<DataBuffer> responseStream = this.getRequester()
 					.route("_")
 					.metadata(httpRequestMetadata, MediaType.APPLICATION_CBOR)
@@ -180,5 +183,33 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 			default:
 				throw new IllegalStateException("Unknown type: " + type);
 		}
+	}
+
+	HttpHeaders setForwardHeaders(URI uri, HttpHeaders source) {
+		final HttpHeaders httpHeaders = new HttpHeaders();
+		httpHeaders.addAll(source);
+		if (!httpHeaders.containsKey("X-Forwarded-Host")) {
+			httpHeaders.set("X-Forwarded-Host", uri.getHost());
+		}
+		final String scheme = uri.getScheme();
+		if (!httpHeaders.containsKey("X-Forwarded-Proto")) {
+			httpHeaders.set("X-Forwarded-Proto", scheme);
+		}
+		if (!httpHeaders.containsKey("X-Forwarded-Port")) {
+			int port = uri.getPort();
+			if (port == -1) {
+				if ("http".equals(scheme) || "ws".equals(scheme)) {
+					port = 80;
+				}
+				else if ("https".equals(scheme) || "wss".equals(scheme)) {
+					port = 443;
+				}
+			}
+			httpHeaders.set("X-Forwarded-Port", String.valueOf(port));
+		}
+		if (!httpHeaders.containsKey("X-Forwarded-Uri")) {
+			httpHeaders.set("X-Forwarded-Uri", uri.getPath());
+		}
+		return httpHeaders;
 	}
 }

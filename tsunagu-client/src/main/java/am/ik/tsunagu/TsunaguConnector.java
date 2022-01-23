@@ -70,7 +70,7 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 				.setupData(Map.of("token", props.getToken()))
 				.rsocketConnector(connector -> connector
 						.reconnect(Retry.fixedDelay(Long.MAX_VALUE, Duration.ofSeconds(1))
-								.doBeforeRetry(s -> log.info("Reconnecting to {}. ({})", props.getRemote(), s)))
+								.doBeforeRetry(s -> log.info("Reconnecting to " + props.getRemote() + ". (" + s + ")", s.failure())))
 						.acceptor((setup, sendingSocket) -> Mono.just(TsunaguConnector.this)))
 				.websocket(props.getRemote());
 		final SslContext sslContext = SslContextBuilder.forClient()
@@ -211,7 +211,7 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 				.retrieveMono(String.class)
 				.doOnRequest(__ -> log.info("Connecting to {}", this.props.getRemote()))
 				.retryWhen(Retry.fixedDelay(Long.MAX_VALUE, Duration.ofSeconds(1))
-						.doBeforeRetry(s -> log.info("Reconnecting to {}. {}", this.props.getRemote(), s)))
+						.doBeforeRetry(s -> log.info("Reconnecting to " + props.getRemote() + ". (" + s + ")", s.failure())))
 				.doOnSuccess(s -> log.info("Connected ({})", s))
 				.doOnError(e -> log.error("Failed to connect ({})", e.getMessage()))
 				.subscribe();
