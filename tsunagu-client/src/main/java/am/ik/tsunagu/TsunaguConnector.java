@@ -24,6 +24,8 @@ import io.rsocket.Payload;
 import io.rsocket.RSocket;
 import io.rsocket.metadata.CompositeMetadata;
 import io.rsocket.metadata.CompositeMetadata.Entry;
+import io.rsocket.transport.ClientTransport;
+import io.rsocket.transport.netty.client.WebsocketClientTransport;
 import io.rsocket.util.DefaultPayload;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -66,15 +68,15 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 	private final ConfigurableApplicationContext context;
 
 	public TsunaguConnector(Builder requesterBuilder, WebClient.Builder webClientBuilder, TsunaguProps props, ConfigurableApplicationContext context) throws SSLException {
+		final SslContext sslContext = SslContextBuilder.forClient()
+				.trustManager(InsecureTrustManagerFactory.INSTANCE).build();
 		this.requester = requesterBuilder
 				.setupData(Map.of("token", props.getToken()))
 				.rsocketConnector(connector -> connector
 						.reconnect(Retry.fixedDelay(Long.MAX_VALUE, Duration.ofSeconds(1))
 								.doBeforeRetry(s -> log.info("Reconnecting to " + props.getRemote() + ". (" + s + ")", s.failure())))
 						.acceptor((setup, sendingSocket) -> Mono.just(TsunaguConnector.this)))
-				.websocket(props.getRemote());
-		final SslContext sslContext = SslContextBuilder.forClient()
-				.trustManager(InsecureTrustManagerFactory.INSTANCE).build();
+				.transport(buildClientTransport(props, sslContext));
 		final HttpClient httpClient = HttpClient.create().secure(ssl -> ssl.sslContext(sslContext));
 		this.webClient = webClientBuilder
 				.clientConnector(new ReactorClientHttpConnector(httpClient))
@@ -85,6 +87,17 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 		this.props = props;
 		this.objectMapper = Jackson2ObjectMapperBuilder.cbor().build();
 		this.context = context;
+	}
+
+	static ClientTransport buildClientTransport(TsunaguProps props, SslContext sslContext) {
+		final URI uri = props.getRemote();
+		boolean isSecure = uri.getScheme().equals("wss") || uri.getScheme().equals("https");
+		HttpClient client =
+				(isSecure ? HttpClient.create().secure(ssl -> ssl.sslContext(sslContext)) : HttpClient.create())
+						.host(uri.getHost())
+						.port(uri.getPort() == -1 ? (isSecure ? 443 : 80) : uri.getPort());
+		return WebsocketClientTransport.create(client, uri.getPath())
+				.webSocketSpec(spec -> spec.maxFramePayloadLength(props.getWebSocketMaxFramePayloadLength()));
 	}
 
 	@Override
