@@ -4,8 +4,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 
 import reactor.core.publisher.Hooks;
-import reactor.netty.http.Http2SslContextSpec;
-import reactor.netty.http.HttpProtocol;
+import reactor.netty.http.Http11SslContextSpec;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -53,13 +52,12 @@ public class TsunaguServerApplication {
 		return httpServer -> httpServer
 				.secure(sslContextSpec -> {
 					try {
-						final Http2SslContextSpec spec = Http2SslContextSpec.forServer(props.getTls().getCrt().getFile(), props.getTls().getKey().getFile());
+						final Http11SslContextSpec spec = Http11SslContextSpec.forServer(props.getTls().getCrt().getFile(), props.getTls().getKey().getFile());
 						sslContextSpec.sslContext(spec);
 					}
 					catch (IOException e) {
 						throw new UncheckedIOException(e);
 					}
-				})
-				.protocol(HttpProtocol.H2);
+				});
 	}
 }
