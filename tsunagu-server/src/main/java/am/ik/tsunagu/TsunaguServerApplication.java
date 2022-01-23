@@ -20,12 +20,7 @@ import org.springframework.nativex.hint.TypeHint;
 		},
 		types = {
 				@TypeHint(
-						types = { HttpHeaders.class, HttpRequestMetadata.class, HttpResponseMetadata.class },
-						typeNames = {
-								"org.springframework.cloud.sleuth.autoconfig.zipkin2.ZipkinActiveMqSenderConfiguration",
-								"org.springframework.cloud.sleuth.autoconfig.zipkin2.ZipkinRabbitSenderConfiguration",
-								"org.springframework.cloud.sleuth.autoconfig.zipkin2.ZipkinKafkaSenderConfiguration"
-						}
+						types = { HttpHeaders.class, HttpRequestMetadata.class, HttpResponseMetadata.class }
 				)
 		})
 public class TsunaguServerApplication {
