@@ -1,19 +1,39 @@
 name: ci
 on: [ push, pull_request ]
 jobs:
-  build:
+  build-server:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+    - uses: actions/cache@v2
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
     - uses: graalvm/setup-graalvm@v1
       with:
         version: 'latest'
         java-version: '11'
         components: 'native-image'
-    - name: Example step
+    - name: build
       run: |
-        echo "GRAALVM_HOME: $GRAALVM_HOME"
-        echo "JAVA_HOME: $JAVA_HOME"
-        java --version
-        gu --version
-        native-image --version
+        ./mvnw clean package -DskipTests -V -Pnative,mostly-static -f ${GITHUB_WORKSPACE}/tsunagu-server
+  build-client:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/cache@v2
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
+    - uses: graalvm/setup-graalvm@v1
+      with:
+        version: 'latest'
+        java-version: '11'
+        components: 'native-image'
+    - name: build
+      run: |
+        ./mvnw clean package -DskipTests -V -Pnative,mostly-static -f ${GITHUB_WORKSPACE}/tsunagu-client
