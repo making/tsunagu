@@ -1,19 +1,57 @@
 name: ci
-on: [ push, pull_request ]
+on:
+  push:
+    branches:
+    - main
+    paths:
+    - tsunagu-server/**
+    - tsunagu-client/**
+    - pom.xml
+    - .github/workflows/ci.yaml
+  pull_request:
+    branches:
+    - main
+    paths:
+    - tsunagu-server/**
+    - tsunagu-client/**
+    - pom.xml
+    - .github/workflows/ci.yaml
 jobs:
-  build:
+  build-server:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+    - uses: actions/cache@v2
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
     - uses: graalvm/setup-graalvm@v1
       with:
         version: 'latest'
         java-version: '11'
         components: 'native-image'
-    - name: Example step
+    - name: build
       run: |
-        echo "GRAALVM_HOME: $GRAALVM_HOME"
-        echo "JAVA_HOME: $JAVA_HOME"
-        java --version
-        gu --version
-        native-image --version
+        cd ${GITHUB_WORKSPACE}/tsunagu-server
+        ./mvnw clean package -DskipTests -V -Pnative,mostly-static
+  build-client:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/cache@v2
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
+    - uses: graalvm/setup-graalvm@v1
+      with:
+        version: 'latest'
+        java-version: '11'
+        components: 'native-image'
+    - name: build
+      run: |
+        cd ${GITHUB_WORKSPACE}/tsunagu-client
+        ./mvnw clean package -DskipTests -V -Pnative,mostly-static
