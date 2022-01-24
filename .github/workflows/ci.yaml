@@ -1,5 +1,21 @@
 name: ci
-on: [ push, pull_request ]
+on:
+  push:
+    branches:
+    - main
+    paths:
+    - tsunagu-server/**
+    - tsunagu-client/**
+    - pom.xml
+    - .github/workflows/ci.yaml
+  pull_request:
+    branches:
+    - main
+    paths:
+    - tsunagu-server/**
+    - tsunagu-client/**
+    - pom.xml
+    - .github/workflows/ci.yaml
 jobs:
   build-server:
     runs-on: ubuntu-latest
@@ -18,7 +34,8 @@ jobs:
         components: 'native-image'
     - name: build
       run: |
-        ./mvnw clean package -DskipTests -V -Pnative,mostly-static -f ${GITHUB_WORKSPACE}/tsunagu-server
+        cd ${GITHUB_WORKSPACE}/tsunagu-server
+        ./mvnw clean package -DskipTests -V -Pnative,mostly-static
   build-client:
     runs-on: ubuntu-latest
     steps:
@@ -36,4 +53,5 @@ jobs:
         components: 'native-image'
     - name: build
       run: |
-        ./mvnw clean package -DskipTests -V -Pnative,mostly-static -f ${GITHUB_WORKSPACE}/tsunagu-client
+        cd ${GITHUB_WORKSPACE}/tsunagu-client
+        ./mvnw clean package -DskipTests -V -Pnative,mostly-static
