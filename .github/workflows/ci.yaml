@@ -52,16 +52,9 @@ jobs:
       run: |
         set -e
         mkdir -p ~/.docker
-        cat <<EOF
-        {
-          "auths": {
-            "https://ghcr.io": {
-              "username": "${DOCKER_USERNAME}",
-              "password": "${DOCKER_PASSWORD}"
-            }
-          }
-        }
-        EOF
+        cat <<EOF > ~/.docker/config.json
+        {"auths":{"ghcr.io":{"username":"${DOCKER_USERNAME}","password":"${DOCKER_PASSWORD}"}}}
+        EOF        
         set -x
         pack build ghcr.io/${DOCKER_USERNAME}/tsunagu-${{ matrix.component }} -p ${GITHUB_WORKSPACE}/tsunagu-${{ matrix.component }}/target/*.zip --builder paketobuildpacks/builder:tiny --publish
     - uses: actions/upload-artifact@v2
