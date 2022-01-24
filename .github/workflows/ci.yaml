@@ -46,6 +46,7 @@ jobs:
         rm -f ../dist/Procfile
         mv ../dist/am* ../dist/tsunagu-${{ matrix.component }}-linux-x86_64
     - name: build-container-image
+    　　　　if: github.ref == 'refs/heads/main'
       env:
         DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
         DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
