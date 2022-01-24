@@ -62,8 +62,8 @@ mvn clean package -DskipTests -f tsunagu-client -Pnative -V
 ### Native Build with Docker
 
 ```
-docker run --rm -v $PWD:/workspace -m 8g -v $HOME/.m2:/root/.m2 -w /workspace --entrypoint bash ghcr.io/graalvm/graalvm-ce:latest -c 'gu install native-image && cd tsunagu-server && ./mvnw clean package -DskipTests -V -Pnative,mostly-static' 
-docker run --rm -v $PWD:/workspace -m 8g -v $HOME/.m2:/root/.m2 -w /workspace --entrypoint bash ghcr.io/graalvm/graalvm-ce:latest -c 'gu install native-image && cd tsunagu-client && ./mvnw clean package -DskipTests -V -Pnative,mostly-static' 
+docker run --rm -v $PWD:/workspace -m 8g -v $HOME/.m2:/root/.m2 -w /workspace --entrypoint bash ghcr.io/graalvm/graalvm-ce:java11-21 -c 'gu install native-image && cd tsunagu-server && ./mvnw clean package -DskipTests -V -Pnative,mostly-static' 
+docker run --rm -v $PWD:/workspace -m 8g -v $HOME/.m2:/root/.m2 -w /workspace --entrypoint bash ghcr.io/graalvm/graalvm-ce:java11-21 -c 'gu install native-image && cd tsunagu-client && ./mvnw clean package -DskipTests -V -Pnative,mostly-static' 
 ```
 
 ```
