@@ -35,8 +35,6 @@ jobs:
         version: 'latest'
         java-version: '11'
         components: 'native-image'
-    - id: setup-pack
-      uses: buildpacks/github-actions/setup-pack@v4.5.0
     - name: build-native-image
       run: |
         set -ex
@@ -45,8 +43,11 @@ jobs:
         unzip target/*.zip -d ../dist
         rm -f ../dist/Procfile
         mv ../dist/am* ../dist/tsunagu-${{ matrix.component }}-linux-x86_64
+    - id: setup-pack
+      if: github.ref == 'refs/heads/main'    
+      uses: buildpacks/github-actions/setup-pack@v4.5.0
     - name: build-container-image
-    　　　　if: github.ref == 'refs/heads/main'
+      if: github.ref == 'refs/heads/main'
       env:
         DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
         DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
