@@ -7,6 +7,13 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.nativex.hint.NativeHint;
 import org.springframework.nativex.hint.TypeHint;
 
+import static org.springframework.nativex.hint.TypeAccess.DECLARED_CONSTRUCTORS;
+import static org.springframework.nativex.hint.TypeAccess.DECLARED_FIELDS;
+import static org.springframework.nativex.hint.TypeAccess.DECLARED_METHODS;
+import static org.springframework.nativex.hint.TypeAccess.PUBLIC_CONSTRUCTORS;
+import static org.springframework.nativex.hint.TypeAccess.PUBLIC_FIELDS;
+import static org.springframework.nativex.hint.TypeAccess.PUBLIC_METHODS;
+
 @SpringBootApplication
 @EnableConfigurationProperties(TsunaguProps.class)
 @NativeHint(
@@ -18,7 +25,8 @@ import org.springframework.nativex.hint.TypeHint;
 		},
 		types = {
 				@TypeHint(
-						types = { HttpHeaders.class, HttpRequestMetadata.class, HttpResponseMetadata.class }
+						types = { HttpHeaders.class, HttpRequestMetadata.class, HttpResponseMetadata.class },
+						access = { DECLARED_FIELDS, DECLARED_METHODS, DECLARED_CONSTRUCTORS, PUBLIC_FIELDS, PUBLIC_METHODS, PUBLIC_CONSTRUCTORS }
 				)
 		})
 public class TsunaguClientApplication {

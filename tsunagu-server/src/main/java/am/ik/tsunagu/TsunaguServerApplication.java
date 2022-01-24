@@ -3,18 +3,25 @@ package am.ik.tsunagu;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Hooks;
 import reactor.netty.http.Http11SslContextSpec;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.embedded.netty.NettyServerCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpHeaders;
 import org.springframework.nativex.hint.NativeHint;
 import org.springframework.nativex.hint.TypeHint;
+
+import static org.springframework.nativex.hint.TypeAccess.DECLARED_CONSTRUCTORS;
+import static org.springframework.nativex.hint.TypeAccess.DECLARED_FIELDS;
+import static org.springframework.nativex.hint.TypeAccess.DECLARED_METHODS;
+import static org.springframework.nativex.hint.TypeAccess.PUBLIC_CONSTRUCTORS;
+import static org.springframework.nativex.hint.TypeAccess.PUBLIC_FIELDS;
+import static org.springframework.nativex.hint.TypeAccess.PUBLIC_METHODS;
 
 @SpringBootApplication
 @EnableConfigurationProperties(TsunaguProps.class)
@@ -27,7 +34,8 @@ import org.springframework.nativex.hint.TypeHint;
 		},
 		types = {
 				@TypeHint(
-						types = { HttpHeaders.class, HttpRequestMetadata.class, HttpResponseMetadata.class }
+						types = { HttpHeaders.class, HttpRequestMetadata.class, HttpResponseMetadata.class },
+						access = { DECLARED_FIELDS, DECLARED_METHODS, DECLARED_CONSTRUCTORS, PUBLIC_FIELDS, PUBLIC_METHODS, PUBLIC_CONSTRUCTORS }
 				)
 		})
 public class TsunaguServerApplication {
@@ -47,8 +55,14 @@ public class TsunaguServerApplication {
 	}
 
 	@Bean
-	@ConditionalOnProperty(name = { "tsunagu.tls.crt", "tsunagu.tls.key" })
 	public NettyServerCustomizer customizer(TsunaguProps props) {
+		final TsunaguProps.Tls tls = props.getTls();
+		// @ConditionalOnProperty(name = { "tsunagu.tls.crt", "tsunagu.tls.key" }) is not working in the native image ???
+		if (tls == null || tls.getCrt() == null || tls.getKey() == null) {
+			return httpServer -> httpServer;
+		}
+		LoggerFactory.getLogger(TsunaguServerApplication.class)
+				.info("TLS is enabled (crt = {}, key = {})", tls.getCrt(), tls.getKey());
 		return httpServer -> httpServer
 				.secure(sslContextSpec -> {
 					try {
