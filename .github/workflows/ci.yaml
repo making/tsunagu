@@ -17,7 +17,10 @@ on:
     - pom.xml
     - .github/workflows/ci.yaml
 jobs:
-  build-server:
+  build:
+    strategy:
+      matrix:
+        component: [ server, client ]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -32,40 +35,28 @@ jobs:
         version: 'latest'
         java-version: '11'
         components: 'native-image'
-    - name: build
+    - id: setup-pack
+      uses: buildpacks/github-actions/setup-pack@v4.5.0
+    - name: build-native-image
       run: |
         set -ex
-        cd ${GITHUB_WORKSPACE}/tsunagu-server
+        cd ${GITHUB_WORKSPACE}/tsunagu-${{ matrix.component }}
         ./mvnw clean package -DskipTests -V -Pnative,mostly-static
         unzip target/*.zip -d ../dist
         rm -f ../dist/Procfile
-    - uses: actions/upload-artifact@v2
-      with:
-        name: dist
-        path: dist/*
-  build-client:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions/cache@v2
-      with:
-        path: ~/.m2/repository
-        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-        restore-keys: |
-          ${{ runner.os }}-maven-
-    - uses: graalvm/setup-graalvm@v1
-      with:
-        version: 'latest'
-        java-version: '11'
-        components: 'native-image'
-    - name: build
+        mv ../dist/am* ../dist/tsunagu-${{ matrix.component }}-linux-x86_64
+    - name: build-container-image
+      env:
+        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
       run: |
-        set -ex
-        cd ${GITHUB_WORKSPACE}/tsunagu-client
-        ./mvnw clean package -DskipTests -V -Pnative,mostly-static
-        unzip target/*.zip -d ../dist
-        rm -f ../dist/Procfile
+        mkdir -p ~/.docker
+        cat <<EOF > ~/.docker/config.json
+        {"auths":{"ghcr.io":{"username":"${DOCKER_USERNAME}","password":"${DOCKER_PASSWORD}"}}}
+        EOF
+        set -x
+        pack build ghcr.io/${DOCKER_USERNAME}/tsunagu-${{ matrix.component }} -p ${GITHUB_WORKSPACE}/tsunagu-${{ matrix.component }}/target/*.zip --builder paketobuildpacks/builder:tiny --publish
     - uses: actions/upload-artifact@v2
       with:
-        name: dist
+        name: tsunagu-dist
         path: dist/*
