@@ -72,7 +72,7 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 
 	@RequestMapping(path = "**")
 	public Mono<Void> proxy(ServerHttpRequest request, ServerHttpResponse response) throws Exception {
-		final HttpHeaders httpHeaders = setForwardHeaders(request.getURI(), request.getHeaders());
+		final HttpHeaders httpHeaders = setForwardHeaders(request);
 		final HttpRequestMetadata httpRequestMetadata = new HttpRequestMetadata(request.getMethod(), request.getURI(), httpHeaders);
 		final Flux<DataBuffer> responseStream;
 		if (httpRequestMetadata.hasBody()) {
@@ -148,7 +148,7 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 	@Override
 	public WebSocketHandler apply(ServerHttpRequest request) {
 		return (session) -> {
-			final HttpHeaders httpHeaders = setForwardHeaders(request.getURI(), request.getHeaders());
+			final HttpHeaders httpHeaders = setForwardHeaders(request);
 			final HttpRequestMetadata httpRequestMetadata = new HttpRequestMetadata(request.getMethod(), request.getURI(), httpHeaders);
 			final Flux<DataBuffer> responseStream = this.getRequester()
 					.route("_")
@@ -185,9 +185,18 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 		}
 	}
 
-	HttpHeaders setForwardHeaders(URI uri, HttpHeaders source) {
+	HttpHeaders setForwardHeaders(ServerHttpRequest request) {
+		final URI uri = request.getURI();
+		final HttpHeaders source = request.getHeaders();
 		final HttpHeaders httpHeaders = new HttpHeaders();
 		httpHeaders.addAll(source);
+		final String remoteAddress = request.getRemoteAddress().getAddress().getHostAddress();
+		if (!httpHeaders.containsKey("X-Forwarded-For")) {
+			httpHeaders.set("X-Forwarded-For", remoteAddress);
+		}
+		else {
+			httpHeaders.set("X-Forwarded-For", httpHeaders.getFirst("X-Forwarded-For") + ", " + remoteAddress);
+		}
 		if (!httpHeaders.containsKey("X-Forwarded-Host")) {
 			httpHeaders.set("X-Forwarded-Host", uri.getHost());
 		}
