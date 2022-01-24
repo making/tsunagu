@@ -10,6 +10,7 @@ import reactor.netty.http.Http11SslContextSpec;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.info.JavaInfo;
 import org.springframework.boot.web.embedded.netty.NettyServerCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpHeaders;
@@ -34,7 +35,14 @@ import static org.springframework.nativex.hint.TypeAccess.PUBLIC_METHODS;
 		},
 		types = {
 				@TypeHint(
-						types = { HttpHeaders.class, HttpRequestMetadata.class, HttpResponseMetadata.class },
+						types = {
+								HttpHeaders.class,
+								HttpRequestMetadata.class,
+								HttpResponseMetadata.class,
+								JavaInfo.class,
+								JavaInfo.JavaRuntimeEnvironmentInfo.class,
+								JavaInfo.JavaVirtualMachineInfo.class
+						},
 						access = { DECLARED_FIELDS, DECLARED_METHODS, DECLARED_CONSTRUCTORS, PUBLIC_FIELDS, PUBLIC_METHODS, PUBLIC_CONSTRUCTORS }
 				)
 		})
