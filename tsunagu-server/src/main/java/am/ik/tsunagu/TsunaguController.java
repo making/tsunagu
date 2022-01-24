@@ -195,7 +195,10 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 			httpHeaders.set("X-Forwarded-For", remoteAddress);
 		}
 		else {
-			httpHeaders.set("X-Forwarded-For", httpHeaders.getFirst("X-Forwarded-For") + ", " + remoteAddress);
+			httpHeaders.set("X-Forwarded-For", httpHeaders.getFirst("X-Forwarded-For") + "," + remoteAddress);
+		}
+		if (!httpHeaders.containsKey("X-Real-IP")) {
+			httpHeaders.set("X-Real-IP", remoteAddress);
 		}
 		if (!httpHeaders.containsKey("X-Forwarded-Host")) {
 			httpHeaders.set("X-Forwarded-Host", uri.getHost());
