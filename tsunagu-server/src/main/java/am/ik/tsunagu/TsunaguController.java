@@ -29,12 +29,15 @@ import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.rsocket.RSocketRequester;
 import org.springframework.messaging.rsocket.annotation.ConnectMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.socket.WebSocketHandler;
@@ -68,6 +71,17 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 		final List<RSocketRequester> list = new ArrayList<>(requesters);
 		Collections.shuffle(list, ThreadLocalRandom.current());
 		return list.get(0);
+	}
+
+	@GetMapping(path = "/.well-known/acme-challenge/{key}")
+	public ResponseEntity<?> acmeChallenge(@PathVariable("key") String key) {
+		final String value = this.props.getAcmeChallenge().get(key);
+		if (value != null) {
+			return ResponseEntity.ok(value);
+		}
+		else {
+			return ResponseEntity.notFound().build();
+		}
 	}
 
 	@RequestMapping(path = "**")

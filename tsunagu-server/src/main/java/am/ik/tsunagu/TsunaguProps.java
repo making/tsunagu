@@ -1,5 +1,7 @@
 package am.ik.tsunagu;
 
+import java.util.Collections;
+import java.util.Map;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -19,10 +21,13 @@ public class TsunaguProps {
 
 	private final Tls tls;
 
+	private final Map<String, String> acmeChallenge;
+
 	private final Logger log = LoggerFactory.getLogger(TsunaguProps.class);
 
-	public TsunaguProps(String token, Tls tls) {
+	public TsunaguProps(String token, Tls tls, Map<String, String> acmeChallenge) {
 		this.tls = tls;
+		this.acmeChallenge = acmeChallenge;
 		if (token == null) {
 			this.token = UUID.randomUUID().toString();
 			log.info("Token = {}", this.token);
@@ -38,6 +43,10 @@ public class TsunaguProps {
 
 	public Tls getTls() {
 		return tls;
+	}
+
+	public Map<String, String> getAcmeChallenge() {
+		return acmeChallenge == null ? Collections.emptyMap() : acmeChallenge;
 	}
 
 	@ConstructorBinding
