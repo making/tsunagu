@@ -34,8 +34,15 @@ jobs:
         components: 'native-image'
     - name: build
       run: |
+        set -ex
         cd ${GITHUB_WORKSPACE}/tsunagu-server
         ./mvnw clean package -DskipTests -V -Pnative,mostly-static
+        unzip target/*.zip -d dist
+        rm -f dist/Procfile
+    - uses: actions/upload-artifact@v2
+      with:
+        name: dist
+        path: dist/*
   build-client:
     runs-on: ubuntu-latest
     steps:
@@ -53,5 +60,12 @@ jobs:
         components: 'native-image'
     - name: build
       run: |
+        set -ex
         cd ${GITHUB_WORKSPACE}/tsunagu-client
         ./mvnw clean package -DskipTests -V -Pnative,mostly-static
+        unzip target/*.zip -d dist
+        rm -f dist/Procfile
+    - uses: actions/upload-artifact@v2
+      with:
+        name: dist
+        path: dist/*
