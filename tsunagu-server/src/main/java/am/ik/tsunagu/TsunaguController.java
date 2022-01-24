@@ -120,7 +120,8 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 					return response.writeWith(body)
 							.doFinally(__ -> {
 								if (log.isInfoEnabled()) {
-									log.info("{}\t{} {} {}", httpRequestMetadata.getMethod(), httpResponseMetadata.getStatus().value(), httpRequestMetadata.getUri(), httpRequestMetadata.getHeaders().getFirst(HttpHeaders.USER_AGENT));
+									final HttpHeaders httpHeaders = httpRequestMetadata.getHeaders();
+									log.info("{}\t{}\t{} {} {}", httpHeaders.getFirst("X-Real-IP"), httpRequestMetadata.getMethod(), httpResponseMetadata.getStatus().value(), httpRequestMetadata.getUri(), httpHeaders.getFirst(HttpHeaders.USER_AGENT));
 								}
 							});
 				}
@@ -170,7 +171,7 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 					.data(session.receive()
 							.doFirst(() -> {
 								if (log.isInfoEnabled()) {
-									log.info("{}\t101 {} {}", httpRequestMetadata.getMethod(), httpRequestMetadata.getUri(), httpRequestMetadata.getHeaders().getFirst(HttpHeaders.USER_AGENT));
+									log.info("{}\t{}\t101 {} {}", httpHeaders.getFirst("X-Real-IP"), httpRequestMetadata.getMethod(), httpRequestMetadata.getUri(), httpHeaders.getFirst(HttpHeaders.USER_AGENT));
 								}
 							})
 							.map(message -> DataBufferUtils.retain(message.getPayload())), DataBuffer.class)

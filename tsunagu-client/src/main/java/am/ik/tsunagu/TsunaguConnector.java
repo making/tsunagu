@@ -197,7 +197,8 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 						.concatWith(response.bodyToFlux(ByteBuf.class) // then send response body
 								.doFinally(__ -> {
 									if (log.isInfoEnabled()) {
-										log.info("{}\t{} {} {}", httpRequestMetadata.getMethod(), httpResponseMetadata.getStatus().value(), httpRequestMetadata.getUri(), httpRequestMetadata.getHeaders().getFirst(HttpHeaders.USER_AGENT));
+										final HttpHeaders httpHeaders = httpRequestMetadata.getHeaders();
+										log.info("{}\t{}\t{} {} {}", httpHeaders.getFirst("X-Real-IP"), httpRequestMetadata.getMethod(), httpResponseMetadata.getStatus().value(), httpRequestMetadata.getUri(), httpHeaders.getFirst(HttpHeaders.USER_AGENT));
 									}
 								})
 								.map(DefaultPayload::create)
