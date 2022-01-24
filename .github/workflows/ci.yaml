@@ -44,6 +44,7 @@ jobs:
         ./mvnw clean package -DskipTests -V -Pnative,mostly-static
         unzip target/*.zip -d ../dist
         rm -f ../dist/Procfile
+        mv ../dist/am* ../dist/tsunagu-${{ matrix.component }}-linux-x86_64
     - name: build-container-image
       env:
         DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -62,9 +63,8 @@ jobs:
         }
         EOF
         set -x
-        cd ${GITHUB_WORKSPACE}/tsunagu-${{ matrix.component }}
-        pack build ghcr.io/${DOCKER_USERNAME}/tsunagu-${{ matrix.component }} -p tsunagu-server/target/*.zip --builder paketobuildpacks/builder:tiny --publish
+        pack build ghcr.io/${DOCKER_USERNAME}/tsunagu-${{ matrix.component }} -p ${GITHUB_WORKSPACE}/tsunagu-${{ matrix.component }}/target/*.zip --builder paketobuildpacks/builder:tiny --publish
     - uses: actions/upload-artifact@v2
       with:
-        name: dist
+        name: tsunagu-dist
         path: dist/*
