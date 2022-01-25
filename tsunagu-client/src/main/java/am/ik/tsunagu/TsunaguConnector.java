@@ -147,7 +147,7 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 								final HttpHeaders httpHeaders = new HttpHeaders();
 								this.copyHeaders(httpRequestMetadata).accept(httpHeaders);
 								if (log.isInfoEnabled()) {
-									log.info("{}\t101 {} {}", httpRequestMetadata.getMethod(), httpRequestMetadata.getUri(), httpRequestMetadata.getHeaders().getFirst(HttpHeaders.USER_AGENT));
+									log.info("{}\t{}\t101 {} {}", httpHeaders.getFirst("X-Real-IP"), httpRequestMetadata.getMethod(), httpRequestMetadata.getUri(), httpRequestMetadata.getHeaders().getFirst(HttpHeaders.USER_AGENT));
 								}
 								return Flux.create(sink -> sink.onDispose(this.webSocketClient.execute(uri, httpHeaders,
 										session -> session
