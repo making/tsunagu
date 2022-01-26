@@ -32,7 +32,7 @@ jobs:
           ${{ runner.os }}-maven-
     - uses: graalvm/setup-graalvm@v1
       with:
-        version: 'latest'
+        version: '22.0.0.2'
         java-version: '11'
         components: 'native-image'
     - name: build-native-image
