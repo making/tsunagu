@@ -202,41 +202,23 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 
 	HttpHeaders setForwardHeaders(ServerHttpRequest request) {
 		final URI uri = request.getURI();
+		final String scheme = uri.getScheme();
+		int port = uri.getPort();
+		if (port == -1) {
+			if ("http".equals(scheme) || "ws".equals(scheme)) {
+				port = 80;
+			}
+			else if ("https".equals(scheme) || "wss".equals(scheme)) {
+				port = 443;
+			}
+		}
 		final HttpHeaders source = request.getHeaders();
 		final HttpHeaders httpHeaders = new HttpHeaders();
 		httpHeaders.addAll(source);
 		final String remoteAddress = request.getRemoteAddress().getAddress().getHostAddress();
-		if (!httpHeaders.containsKey("X-Forwarded-For")) {
-			httpHeaders.set("X-Forwarded-For", remoteAddress);
-		}
-		else {
-			httpHeaders.set("X-Forwarded-For", httpHeaders.getFirst("X-Forwarded-For") + "," + remoteAddress);
-		}
-		if (!httpHeaders.containsKey("X-Real-IP")) {
-			httpHeaders.set("X-Real-IP", remoteAddress);
-		}
-		if (!httpHeaders.containsKey("X-Forwarded-Host")) {
-			httpHeaders.set("X-Forwarded-Host", uri.getHost());
-		}
-		final String scheme = uri.getScheme();
-		if (!httpHeaders.containsKey("X-Forwarded-Proto")) {
-			httpHeaders.set("X-Forwarded-Proto", scheme);
-		}
-		if (!httpHeaders.containsKey("X-Forwarded-Port")) {
-			int port = uri.getPort();
-			if (port == -1) {
-				if ("http".equals(scheme) || "ws".equals(scheme)) {
-					port = 80;
-				}
-				else if ("https".equals(scheme) || "wss".equals(scheme)) {
-					port = 443;
-				}
-			}
-			httpHeaders.set("X-Forwarded-Port", String.valueOf(port));
-		}
-		if (!httpHeaders.containsKey("X-Forwarded-Uri")) {
-			httpHeaders.set("X-Forwarded-Uri", uri.getPath());
-		}
+		final String forwarded = String.format("for=%s;host=%s:%d;proto=%s", remoteAddress, uri.getHost(), port, scheme);
+		httpHeaders.set("Forwarded", forwarded);
+		httpHeaders.set("X-Real-IP", remoteAddress);
 		return httpHeaders;
 	}
 }
