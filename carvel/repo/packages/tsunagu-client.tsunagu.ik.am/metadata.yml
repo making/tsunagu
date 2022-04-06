@@ -3,7 +3,7 @@ kind: PackageMetadata
 metadata:
   name: tsunagu-client.tsunagu.ik.am
 spec:
-  displayName: "Tsunagu Client"
+  displayName: tsunagu-client
   longDescription: "Tsunagu Client"
   shortDescription: "Tsunagu Client"
   categories:

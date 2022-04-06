@@ -3,7 +3,7 @@ kind: PackageMetadata
 metadata:
   name: tsunagu-server.tsunagu.ik.am
 spec:
-  displayName: "Tsunagu Server"
+  displayName: tsunagu-server
   longDescription: "Tsunagu Server"
   shortDescription: "Tsunagu Server"
   categories:
