@@ -5,6 +5,7 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -182,7 +183,16 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 	Consumer<HttpHeaders> copyHeaders(HttpRequestMetadata httpRequestMetadata) {
 		return headers -> {
 			headers.addAll(httpRequestMetadata.getHeaders());
-			if (!this.props.isPreserveHost()) {
+			if (this.props.isPreserveHost()) {
+				final Map<String, String> hostMap = this.props.getHostMap();
+				final String originalHost = headers.getFirst(HttpHeaders.HOST);
+				final String mappedHost = hostMap.get(originalHost);
+				if (mappedHost != null) {
+					log.debug("Mapping host: {} => {}", originalHost, mappedHost);
+					headers.replace(HttpHeaders.HOST, List.of(mappedHost));
+				}
+			}
+			else {
 				headers.remove(HttpHeaders.HOST);
 			}
 		};

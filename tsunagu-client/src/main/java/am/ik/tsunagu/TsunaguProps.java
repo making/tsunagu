@@ -1,6 +1,8 @@
 package am.ik.tsunagu;
 
 import java.net.URI;
+import java.util.Collections;
+import java.util.Map;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.ConstructorBinding;
@@ -20,12 +22,15 @@ public class TsunaguProps {
 
 	private final Integer webSocketMaxFramePayloadLength;
 
-	public TsunaguProps(URI remote, URI upstream, @DefaultValue("false") boolean preserveHost, String token, @DefaultValue("655350") Integer webSocketMaxFramePayloadLength) {
+	private final Map<String, String> hostMap;
+
+	public TsunaguProps(URI remote, URI upstream, @DefaultValue("false") boolean preserveHost, String token, @DefaultValue("655350") Integer webSocketMaxFramePayloadLength, Map<String, String> hostMap) {
 		this.remote = fixPort(remote);
 		this.upstream = fixPort(upstream);
 		this.preserveHost = preserveHost;
 		this.token = token;
 		this.webSocketMaxFramePayloadLength = webSocketMaxFramePayloadLength;
+		this.hostMap = hostMap == null ? Map.of() : Collections.unmodifiableMap(hostMap);
 	}
 
 	public URI getRemote() {
@@ -46,6 +51,10 @@ public class TsunaguProps {
 
 	public Integer getWebSocketMaxFramePayloadLength() {
 		return webSocketMaxFramePayloadLength;
+	}
+
+	public Map<String, String> getHostMap() {
+		return hostMap;
 	}
 
 	static URI fixPort(URI uri) {
