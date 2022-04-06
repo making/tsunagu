@@ -1,0 +1,11 @@
+---
+apiVersion: imgpkg.carvel.dev/v1alpha1
+images:
+- annotations:
+    kbld.carvel.dev/id: ghcr.io/making/tsunagu-server
+    kbld.carvel.dev/origins: |
+      - resolved:
+          tag: latest
+          url: ghcr.io/making/tsunagu-server
+  image: ghcr.io/making/tsunagu-server@sha256:6b5e290cddd5b8daee7c46e8018f4145306de460042dcc6b33a393a86320856a
+kind: ImagesLock

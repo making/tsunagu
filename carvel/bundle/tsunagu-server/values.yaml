@@ -1,0 +1,16 @@
+#@data/values-schema
+---
+tsunagu:
+  #@schema/desc "namespace where tsunagu server is installed"
+  namespace: tsunagu
+  #@schema/desc "whether to create the namespace"
+  create_namespace: true
+  #@schema/desc "access token to accept the connection from clients"
+  token: ""
+  #@schema/desc "FQDN for the tsunagu server"
+  fqdn: tsunagu.example.com
+  issuer:
+    #@schema/desc "Issuer or ClusterIssuer"
+    kind: ClusterIssuer
+    #@schema/desc "the name of Issuer or ClusterIssuer"
+    name: ""

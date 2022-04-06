@@ -1,0 +1,11 @@
+apiVersion: data.packaging.carvel.dev/v1alpha1
+kind: PackageMetadata
+metadata:
+  name: tsunagu-server.tsunagu.ik.am
+spec:
+  displayName: "Tsunagu Server"
+  longDescription: "Tsunagu Server"
+  shortDescription: "Tsunagu Server"
+  categories:
+  - tsunagu
+  - tunneling

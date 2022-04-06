@@ -1,0 +1,15 @@
+#@data/values-schema
+---
+tsunagu:
+  #@schema/desc "namespace where tsunagu client is installed"
+  namespace: tsunagu
+  #@schema/desc "whether to create the namespace"
+  create_namespace: true
+  #@schema/desc "access token to connect tsunagu server"
+  token: ""
+  #@schema/desc "remote url of tsunagu server"
+  remote: ""
+  #@schema/desc "upstream url"
+  upstream: ""
+  #@schema/desc "whether to preserve host header in the request to the upstream"
+  preserve_host: false

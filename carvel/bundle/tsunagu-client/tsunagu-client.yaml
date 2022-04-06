@@ -1,0 +1,73 @@
+#@ load("@ytt:data", "data")
+#@ if/end data.values.tsunagu.create_namespace:
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: #@ data.values.tsunagu.namespace
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: tsunagu
+  namespace: #@ data.values.tsunagu.namespace
+type: Opaque
+stringData:
+  token: #@ data.values.tsunagu.token
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: tsunagu-client
+  name: tsunagu-client
+  namespace: #@ data.values.tsunagu.namespace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tsunagu-client
+  template:
+    metadata:
+      labels:
+        app: tsunagu-client
+      annotations:
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8084"
+    spec:
+      containers:
+      - name: tsunagu-client
+        image: ghcr.io/making/tsunagu-client
+        env:
+        - name: SPRING_CONFIG_IMPORT
+          value: configtree:/config/
+        - name: TSUNAGU_REMOTE
+          value: #@ data.values.tsunagu.remote
+        - name: TSUNAGU_UPSTREAM
+          value: #@ data.values.tsunagu.upstream
+        - name: TSUNAGU_PRESERVE_HOST
+          value: #@ "{}".format(data.values.tsunagu.preserve_host)
+        - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+          value: info,health,prometheus
+        resources:
+          limits:
+            memory: "256Mi"
+          requests:
+            memory: "256Mi"
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8084
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8084
+        volumeMounts:
+        - name: tsunagu
+          mountPath: /config/tsunagu
+          readOnly: true
+      volumes:
+      - name: tsunagu
+        secret:
+          secretName: tsunagu

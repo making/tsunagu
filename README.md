@@ -81,3 +81,25 @@ Build and publish docker images
 pack build ghcr.io/making/tsunagu-server -p tsunagu-server/target/tsunagu-server-0.0.1-SNAPSHOT.zip --builder paketobuildpacks/builder:tiny --publish
 pack build ghcr.io/making/tsunagu-client -p tsunagu-client/target/tsunagu-client-0.0.1-SNAPSHOT.zip --builder paketobuildpacks/builder:tiny --publish
 ```
+
+### How to create the Carvel Package
+
+```
+VERSION=0.0.1
+kbld -f carvel/bundle/tsunagu-client/tsunagu-client.yaml --imgpkg-lock-output carvel/bundle/tsunagu-client/.imgpkg/images.yml
+imgpkg push -b ghcr.io/making/tsunagu-client-bundle:${VERSION} -f carvel/bundle/tsunagu-client
+
+kbld -f carvel/bundle/tsunagu-server/tsunagu-server.yaml --imgpkg-lock-output carvel/bundle/tsunagu-server/.imgpkg/images.yml
+imgpkg push -b ghcr.io/making/tsunagu-server-bundle:${VERSION} -f carvel/bundle/tsunagu-server
+```
+
+```
+ytt -f carvel/bundle/tsunagu-client/values.yaml --data-values-schema-inspect -o openapi-v3 > /tmp/tsunagu-client-schema-openapi.yml
+ytt -f carvel/template/tsunagu-client.yaml --data-value-file openapi=/tmp/tsunagu-client-schema-openapi.yml -v version=${VERSION} > carvel/repo/packages/tsunagu-client.tsunagu.ik.am/${VERSION}.yaml
+
+ytt -f carvel/bundle/tsunagu-server/values.yaml --data-values-schema-inspect -o openapi-v3 > /tmp/tsunagu-server-schema-openapi.yml
+ytt -f carvel/template/tsunagu-server.yaml --data-value-file openapi=/tmp/tsunagu-server-schema-openapi.yml -v version=${VERSION} > carvel/repo/packages/tsunagu-server.tsunagu.ik.am/${VERSION}.yaml
+
+kbld -f carvel/repo/packages --imgpkg-lock-output carvel/repo/.imgpkg/images.yml
+imgpkg push -b ghcr.io/making/tsunagu-repo:${VERSION} -f carvel/repo
+```

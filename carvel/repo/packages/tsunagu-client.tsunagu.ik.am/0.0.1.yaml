@@ -1,0 +1,61 @@
+apiVersion: data.packaging.carvel.dev/v1alpha1
+kind: Package
+metadata:
+  name: tsunagu-client.tsunagu.ik.am.0.0.1
+spec:
+  refName: tsunagu-client.tsunagu.ik.am
+  version: 0.0.1
+  releaseNotes: Tsunagu Client 0.0.1
+  valuesSchema:
+    openAPIv3:
+      type: object
+      additionalProperties: false
+      properties:
+        tsunagu:
+          type: object
+          additionalProperties: false
+          properties:
+            namespace:
+              type: string
+              description: namespace where tsunagu client is installed
+              default: tsunagu
+            create_namespace:
+              type: boolean
+              description: whether to create the namespace
+              default: true
+            token:
+              type: string
+              description: access token to connect tsunagu server
+              default: ""
+            remote:
+              type: string
+              description: remote url of tsunagu server
+              default: ""
+            upstream:
+              type: string
+              description: upstream url
+              default: ""
+            preserve_host:
+              type: boolean
+              description: whether to preserve host header in the request to the upstream
+              default: false
+  template:
+    spec:
+      fetch:
+      - imgpkgBundle:
+          image: ghcr.io/making/tsunagu-client-bundle:0.0.1
+      template:
+      - ytt: {}
+      - kbld:
+          paths:
+          - '-'
+          - .imgpkg/images.yml
+      deploy:
+      - kapp:
+          rawOptions:
+          - --wait-timeout=5m
+          - --diff-changes=true
+          - --diff-mask=false
+          inspect:
+            rawOptions:
+            - --tree=true
