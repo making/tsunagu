@@ -16,3 +16,6 @@ tsunagu:
   #@schema/desc "host map"
   #@schema/type any=True
   host_map: {}
+  #@schema/desc "path to host map"
+  #@schema/type any=True
+  path_to_host_map: {}

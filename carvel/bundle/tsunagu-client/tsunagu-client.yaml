@@ -54,6 +54,12 @@ spec:
           value: #@ new
         #@   end
         #@ end
+        #@ if data.values.tsunagu.path_to_host_map:
+        #@   for path,host in dict(data.values.tsunagu.path_to_host_map).items():
+        - name: #@ "TSUNAGU_PATHTOHOSTMAP_{}".format(path.upper().strip("/"))
+          value: #@ host
+        #@   end
+        #@ end
         - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
           value: info,health,prometheus
         resources:

@@ -43,6 +43,10 @@ spec:
               nullable: true
               description: host map
               default: {}
+            path_to_host_map:
+              nullable: true
+              description: path to host map
+              default: {}
   template:
     spec:
       fetch:

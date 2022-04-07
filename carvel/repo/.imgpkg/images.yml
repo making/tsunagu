@@ -7,12 +7,12 @@ images:
       - resolved:
           tag: 0.0.1
           url: ghcr.io/making/tsunagu-client-bundle:0.0.1
-  image: ghcr.io/making/tsunagu-client-bundle@sha256:22db79287cb26205cbc6b016e472d424abd87e88325e720afce7426f4b65c679
+  image: ghcr.io/making/tsunagu-client-bundle@sha256:9ac5425407cc2cd2b28f6928a43a4e66c9655a886d958c2fa86b3cbe4278cd68
 - annotations:
     kbld.carvel.dev/id: ghcr.io/making/tsunagu-server-bundle:0.0.1
     kbld.carvel.dev/origins: |
       - resolved:
           tag: 0.0.1
           url: ghcr.io/making/tsunagu-server-bundle:0.0.1
-  image: ghcr.io/making/tsunagu-server-bundle@sha256:baee49b205ee7e09031872aea32a3b2cf77ac70419c9cd38bbd18be0814efd03
+  image: ghcr.io/making/tsunagu-server-bundle@sha256:5a215121937541b7b3a27abe699fc444c32cdc0a0239fb45e15bb845ed6918a0
 kind: ImagesLock
