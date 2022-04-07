@@ -7,7 +7,7 @@ images:
       - resolved:
           tag: 0.0.1
           url: ghcr.io/making/tsunagu-client-bundle:0.0.1
-  image: ghcr.io/making/tsunagu-client-bundle@sha256:1fbbc60b8c7c4dee9d5670eef02ad6475e659a204d7920e51a1e184e261f3e98
+  image: ghcr.io/making/tsunagu-client-bundle@sha256:02e5c20d9240978cfa6338a2f3b9bc664cabd81ff9d978cf30ac0476b5ca1ab9
 - annotations:
     kbld.carvel.dev/id: ghcr.io/making/tsunagu-server-bundle:0.0.1
     kbld.carvel.dev/origins: |

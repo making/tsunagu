@@ -47,7 +47,13 @@ spec:
         - name: TSUNAGU_UPSTREAM
           value: #@ data.values.tsunagu.upstream
         - name: TSUNAGU_PRESERVE_HOST
-          value: #@ "{}".format(data.values.tsunagu.preserve_host)
+          value: #@ "{}".format(data.values.tsunagu.preserve_host).lower()
+        #@ if data.values.tsunagu.host_map:
+        #@   for old,new in dict(data.values.tsunagu.host_map).items():
+        - name: #@ "TSUNAGU_HOSTMAP_{}".format(old.upper().replace('.', '_'))
+          value: #@ new
+        #@   end
+        #@ end
         - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
           value: info,health,prometheus
         resources:
