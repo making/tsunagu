@@ -24,13 +24,16 @@ public class TsunaguProps {
 
 	private final Map<String, String> hostMap;
 
-	public TsunaguProps(URI remote, URI upstream, @DefaultValue("false") boolean preserveHost, String token, @DefaultValue("655350") Integer webSocketMaxFramePayloadLength, Map<String, String> hostMap) {
+	private final Map<String, String> pathToHostMap;
+
+	public TsunaguProps(URI remote, URI upstream, @DefaultValue("false") boolean preserveHost, String token, @DefaultValue("655350") Integer webSocketMaxFramePayloadLength, Map<String, String> hostMap, Map<String, String> pathToHostMap) {
 		this.remote = fixPort(remote);
 		this.upstream = fixPort(upstream);
 		this.preserveHost = preserveHost;
 		this.token = token;
 		this.webSocketMaxFramePayloadLength = webSocketMaxFramePayloadLength;
 		this.hostMap = hostMap == null ? Map.of() : Collections.unmodifiableMap(hostMap);
+		this.pathToHostMap = pathToHostMap == null ? Map.of() : Collections.unmodifiableMap(pathToHostMap);
 	}
 
 	public URI getRemote() {
@@ -55,6 +58,10 @@ public class TsunaguProps {
 
 	public Map<String, String> getHostMap() {
 		return hostMap;
+	}
+
+	public Map<String, String> getPathToHostMap() {
+		return pathToHostMap;
 	}
 
 	static URI fixPort(URI uri) {

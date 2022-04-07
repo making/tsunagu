@@ -195,6 +195,14 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 			else {
 				headers.remove(HttpHeaders.HOST);
 			}
+			final Map<String, String> pathToHostMap = this.props.getPathToHostMap();
+			pathToHostMap.forEach((pathPrefix, host) -> {
+				final String path = httpRequestMetadata.getUri().getPath();
+				if (path.startsWith(pathPrefix)) {
+					log.debug("Mapping pathToHost: {} => {}", path, host);
+					headers.replace(HttpHeaders.HOST, List.of(host));
+				}
+			});
 		};
 	}
 
