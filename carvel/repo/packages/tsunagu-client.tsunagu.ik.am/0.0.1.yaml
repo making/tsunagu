@@ -40,10 +40,9 @@ spec:
               description: whether to preserve host header in the request to the upstream
               default: false
             host_map:
-              type: object
-              additionalProperties: false
+              nullable: true
               description: host map
-              properties: {}
+              default: {}
   template:
     spec:
       fetch:

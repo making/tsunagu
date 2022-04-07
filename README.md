@@ -91,9 +91,7 @@ imgpkg push -b ghcr.io/making/tsunagu-client-bundle:${VERSION} -f carvel/bundle/
 
 kbld -f carvel/bundle/tsunagu-server/tsunagu-server.yaml --imgpkg-lock-output carvel/bundle/tsunagu-server/.imgpkg/images.yml
 imgpkg push -b ghcr.io/making/tsunagu-server-bundle:${VERSION} -f carvel/bundle/tsunagu-server
-```
 
-```
 ytt -f carvel/bundle/tsunagu-client/values.yaml --data-values-schema-inspect -o openapi-v3 > /tmp/tsunagu-client-schema-openapi.yml
 ytt -f carvel/template/tsunagu-client.yaml --data-value-file openapi=/tmp/tsunagu-client-schema-openapi.yml -v version=${VERSION} > carvel/repo/packages/tsunagu-client.tsunagu.ik.am/${VERSION}.yaml
 

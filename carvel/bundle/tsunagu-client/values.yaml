@@ -14,4 +14,5 @@ tsunagu:
   #@schema/desc "whether to preserve host header in the request to the upstream"
   preserve_host: false
   #@schema/desc "host map"
+  #@schema/type any=True
   host_map: {}
