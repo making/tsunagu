@@ -197,7 +197,7 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 			}
 			final Map<String, String> pathToHostMap = this.props.getPathToHostMap();
 			if (!pathToHostMap.isEmpty()) {
-				final String path = removeBeginningSlash(httpRequestMetadata.getUri().getPath());
+				final String path = removeLeadingSlash(httpRequestMetadata.getUri().getPath());
 				pathToHostMap.forEach((pathPrefix, host) -> {
 					if (path.startsWith(pathPrefix)) {
 						log.debug("Mapping pathToHost: /{} => {}", path, host);
@@ -208,7 +208,7 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 		};
 	}
 
-	static String removeBeginningSlash(String path) {
+	static String removeLeadingSlash(String path) {
 		return path.startsWith("/") ? path.substring(1) : path;
 	}
 
