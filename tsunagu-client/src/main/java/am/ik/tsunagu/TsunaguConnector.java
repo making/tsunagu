@@ -121,7 +121,7 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 			final HttpRequestMetadata httpRequestMetadata = this.getHttpRequestMetadata(payload);
 			final URI uri = UriComponentsBuilder.fromUri(httpRequestMetadata.getUri())
 					.uri(this.props.getUpstream())
-					.build(false)
+					.build(true)
 					.toUri();
 			return this.webClient.method(httpRequestMetadata.getMethod())
 					.uri(uri)
@@ -142,7 +142,7 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 							final HttpRequestMetadata httpRequestMetadata = this.getHttpRequestMetadata(signal.get());
 							final URI uri = UriComponentsBuilder.fromUri(httpRequestMetadata.getUri())
 									.uri(this.props.getUpstream())
-									.build(false)
+									.build(true)
 									.toUri();
 							if (httpRequestMetadata.isWebSocketRequest()) {
 								final HttpHeaders httpHeaders = new HttpHeaders();
