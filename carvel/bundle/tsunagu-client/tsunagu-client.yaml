@@ -19,18 +19,18 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: tsunagu-client
+    app.kubernetes.io/part-of: tsunagu-client
   name: tsunagu-client
   namespace: #@ data.values.tsunagu.namespace
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: tsunagu-client
+      app.kubernetes.io/part-of: tsunagu-client
   template:
     metadata:
       labels:
-        app: tsunagu-client
+        app.kubernetes.io/part-of: tsunagu-client
       annotations:
         prometheus.io/path: /actuator/prometheus
         prometheus.io/scrape: "true"
@@ -39,6 +39,9 @@ spec:
       containers:
       - name: tsunagu-client
         image: ghcr.io/making/tsunagu-client
+        ports:
+        - name: web
+          containerPort: 8084
         env:
         - name: SPRING_CONFIG_IMPORT
           value: configtree:/config/

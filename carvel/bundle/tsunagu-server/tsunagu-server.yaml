@@ -19,7 +19,7 @@ spec:
   - name: actuator
     port: 9090
   selector:
-    app: tsunagu-server
+    app.kubernetes.io/part-of: tsunagu-server
   type: ClusterIP
 ---
 apiVersion: apps/v1
@@ -31,11 +31,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: tsunagu-server
+      app.kubernetes.io/part-of: tsunagu-server
   template:
     metadata:
       labels:
-        app: tsunagu-server
+        app.kubernetes.io/part-of: tsunagu-server
     spec:
       containers:
       - name: tsunagu-server
@@ -44,8 +44,10 @@ spec:
         - name: SPRING_CONFIG_IMPORT
           value: configtree:/config/
         ports:
-        - containerPort: 8080
-        - containerPort: 9090
+        - name: web
+          containerPort: 8080
+        - name: actuator
+          containerPort: 9090
         resources:
           limits:
             memory: "200Mi"
