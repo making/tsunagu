@@ -34,21 +34,20 @@ public class TsunaguConnectionVerifier {
 	}
 
 	public void verifyConnection() {
-		log.info("verify connection");
+		log.debug("verify connection");
 		try {
 			final String[] requesters = this.restTemplate.getForObject("/.tsunagu/requesters", String[].class);
-			log.info("requesters = {}", Arrays.toString(requesters));
 			if (Arrays.asList(requesters).contains(this.requesterId)) {
-				log.info("verification ok");
-				//AvailabilityChangeEvent.publish(this.eventPublisher, requesters, LivenessState.CORRECT);
+				log.debug("verification ok requester(client={}, server={})", this.requesterId, Arrays.toString(requesters));
+				AvailabilityChangeEvent.publish(this.eventPublisher, requesters, LivenessState.CORRECT);
 			}
 			else {
-				log.info("verification failed");
-				//AvailabilityChangeEvent.publish(this.eventPublisher, requesters, LivenessState.BROKEN);
+				log.warn("verification failed requester(client={}, server={})", this.requesterId, Arrays.toString(requesters));
+				AvailabilityChangeEvent.publish(this.eventPublisher, requesters, LivenessState.BROKEN);
 			}
 		}
 		catch (RuntimeException e) {
-			log.info("verification failed", e);
+			log.warn("verification failed", e);
 			AvailabilityChangeEvent.publish(this.eventPublisher, e, LivenessState.BROKEN);
 		}
 	}

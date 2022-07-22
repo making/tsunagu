@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -75,6 +76,8 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 
 	private final ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
 
+	private ScheduledFuture<?> verificationScheduledFuture = null;
+
 	public TsunaguConnector(Builder requesterBuilder, WebClient.Builder webClientBuilder, TsunaguProps props, ConfigurableApplicationContext context) throws SSLException {
 		final SslContext sslContext = SslContextBuilder.forClient()
 				.trustManager(InsecureTrustManagerFactory.INSTANCE).build();
@@ -118,9 +121,17 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 				if (response.has("type")) {
 					final String type = response.get("type").asText();
 					if ("connected".equals(type) && response.has("requesterId")) {
+						if (this.verificationScheduledFuture != null) {
+							log.info("cancel existing verification");
+							final boolean canceled = this.verificationScheduledFuture.cancel(true);
+							if (!canceled) {
+								log.info("failed to cancel...");
+							}
+						}
 						final String requesterId = response.get("requesterId").asText();
 						final TsunaguConnectionVerifier verifier = new TsunaguConnectionVerifier(requesterId, this.context, this.props);
-						this.scheduledExecutor.scheduleAtFixedRate(verifier::verifyConnection, 0, 1, TimeUnit.MINUTES);
+						log.info("start verification for the requester({})", requesterId);
+						this.verificationScheduledFuture = this.scheduledExecutor.scheduleAtFixedRate(verifier::verifyConnection, 0, 1, TimeUnit.MINUTES);
 						return Mono.empty();
 					}
 				}
