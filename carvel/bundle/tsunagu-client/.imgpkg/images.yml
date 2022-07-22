@@ -7,5 +7,5 @@ images:
       - resolved:
           tag: latest
           url: ghcr.io/making/tsunagu-client
-  image: ghcr.io/making/tsunagu-client@sha256:5c7608c2eb756ae8fd6e3f380a473f9c9671f77d2072d1045ffa5b511db18827
+  image: ghcr.io/making/tsunagu-client@sha256:8aab32a7e6e023ca114e4e65ff3c595d6c4d794c6f7cf0170e82167bf6040a36
 kind: ImagesLock
