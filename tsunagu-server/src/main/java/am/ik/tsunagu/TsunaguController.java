@@ -5,17 +5,21 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.rsocket.core.RSocketClient;
 import io.rsocket.util.DefaultPayload;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -50,7 +54,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class TsunaguController implements Function<ServerHttpRequest, WebSocketHandler> {
 	private final Logger log = LoggerFactory.getLogger(TsunaguController.class);
 
-	private final Set<RSocketRequester> requesters = Collections.newSetFromMap(new ConcurrentHashMap<>());
+	private final ConcurrentMap<UUID, RSocketRequester> requesters = new ConcurrentHashMap<>();
 
 	private final ObjectMapper objectMapper;
 
@@ -62,13 +66,14 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 	}
 
 	private RSocketRequester getRequester() {
-		if (this.requesters.isEmpty()) {
+		final Collection<RSocketRequester> rSocketRequesters = requesters.values();
+		if (rSocketRequesters.isEmpty()) {
 			throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "No requester found.");
 		}
-		if (requesters.size() == 1) {
-			return requesters.iterator().next();
+		if (rSocketRequesters.size() == 1) {
+			return rSocketRequesters.iterator().next();
 		}
-		final List<RSocketRequester> list = new ArrayList<>(requesters);
+		final List<RSocketRequester> list = new ArrayList<>(rSocketRequesters);
 		Collections.shuffle(list, ThreadLocalRandom.current());
 		return list.get(0);
 	}
@@ -82,6 +87,11 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 		else {
 			return ResponseEntity.notFound().build();
 		}
+	}
+
+	@GetMapping(path = "/.tsunagu/requesters")
+	public Collection<UUID> requesters() {
+		return this.requesters.keySet();
 	}
 
 	@RequestMapping(path = "**")
@@ -135,22 +145,25 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 
 	@ConnectMapping
 	public void connect(RSocketRequester requester, @org.springframework.messaging.handler.annotation.Payload Map<String, String> data) {
+		final RSocketClient rsocketClient = requester.rsocketClient();
+		final UUID requesterId = UUID.randomUUID();
 		if (!Objects.equals(this.props.getToken(), data.get("token"))) {
-			requester.rsocketClient().fireAndForget(Mono.just(DefaultPayload.create("Token is wrong."))).subscribe();
+			rsocketClient.fireAndForget(Mono.just(DefaultPayload.create("{\"type\":\"error\",\"message\":\"Token is wrong.\"}"))).subscribe();
 			return;
 		}
 		requester.rsocket()
 				.onClose()
 				.doFirst(() -> {
-					requesters.add(requester);
-					log.info("Client: Connected ({}) clients={}", requester, requesters);
+					requesters.put(requesterId, requester);
+					log.info("Client: Connected ({}) clients={}", requesterId, requesters.keySet());
+					rsocketClient.fireAndForget(Mono.just(DefaultPayload.create("{\"type\":\"connected\",\"requesterId\":\"" + requesterId + "\"}"))).subscribe();
 				})
 				.doOnError(error -> {
 					log.warn("Client: Error (" + requester + ")", error);
 				})
 				.doFinally(consumer -> {
-					requesters.remove(requester);
-					log.info("Client: Disconnected ({}) clients={}", requester, requesters);
+					requesters.remove(requesterId);
+					log.info("Client: Disconnected ({}) clients={}", requesterId, requesters.keySet());
 				})
 				.subscribe();
 	}

@@ -7,6 +7,7 @@ import org.springframework.boot.info.JavaInfo;
 import org.springframework.http.HttpHeaders;
 import org.springframework.nativex.hint.NativeHint;
 import org.springframework.nativex.hint.TypeHint;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import static org.springframework.nativex.hint.TypeAccess.DECLARED_CONSTRUCTORS;
 import static org.springframework.nativex.hint.TypeAccess.DECLARED_FIELDS;
@@ -37,6 +38,7 @@ import static org.springframework.nativex.hint.TypeAccess.PUBLIC_METHODS;
 						access = { DECLARED_FIELDS, DECLARED_METHODS, DECLARED_CONSTRUCTORS, PUBLIC_FIELDS, PUBLIC_METHODS, PUBLIC_CONSTRUCTORS }
 				)
 		})
+@EnableScheduling
 public class TsunaguClientApplication {
 
 	public static void main(String[] args) {

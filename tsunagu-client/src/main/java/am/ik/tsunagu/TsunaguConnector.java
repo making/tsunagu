@@ -7,6 +7,9 @@ import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -14,6 +17,7 @@ import java.util.stream.Collectors;
 import javax.net.ssl.SSLException;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -34,6 +38,7 @@ import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.SignalType;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.http.client.WebsocketClientSpec;
 import reactor.util.retry.Retry;
@@ -67,6 +72,8 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 	private final TsunaguProps props;
 
 	private final ConfigurableApplicationContext context;
+
+	private final ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
 
 	public TsunaguConnector(Builder requesterBuilder, WebClient.Builder webClientBuilder, TsunaguProps props, ConfigurableApplicationContext context) throws SSLException {
 		final SslContext sslContext = SslContextBuilder.forClient()
@@ -103,9 +110,28 @@ public class TsunaguConnector implements RSocket, CommandLineRunner {
 
 	@Override
 	public Mono<Void> fireAndForget(Payload payload) {
-		log.error(payload.getDataUtf8());
-		return Mono.<Void>empty()
-				.doFinally(__ -> context.close());
+		final String data = payload.getDataUtf8();
+		final Consumer<SignalType> closer = __ -> context.close();
+		if (data.startsWith("{") && data.endsWith("}")) {
+			try {
+				final JsonNode response = new ObjectMapper().readValue(data, JsonNode.class);
+				if (response.has("type")) {
+					final String type = response.get("type").asText();
+					if ("connected".equals(type) && response.has("requesterId")) {
+						final String requesterId = response.get("requesterId").asText();
+						final TsunaguConnectionVerifier verifier = new TsunaguConnectionVerifier(requesterId, this.context, this.props);
+						this.scheduledExecutor.scheduleAtFixedRate(verifier::verifyConnection, 0, 1, TimeUnit.MINUTES);
+						return Mono.empty();
+					}
+				}
+			}
+			catch (JsonProcessingException e) {
+				log.error("can't parse json", e);
+				return Mono.<Void>error(e).doFinally(closer);
+			}
+		}
+		log.error(data);
+		return Mono.<Void>empty().doFinally(closer);
 	}
 
 	HttpRequestMetadata getHttpRequestMetadata(Payload payload) throws IOException {
