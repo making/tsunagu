@@ -57,7 +57,7 @@ jobs:
         {"auths":{"ghcr.io":{"username":"${DOCKER_USERNAME}","password":"${DOCKER_PASSWORD}"}}}
         EOF
         set -x
-        pack build ghcr.io/${DOCKER_USERNAME}/tsunagu-${{ matrix.component }} -p ${GITHUB_WORKSPACE}/tsunagu-${{ matrix.component }}/target/*.zip --builder paketobuildpacks/builder:tiny --publish
+        pack build ghcr.io/${DOCKER_USERNAME}/tsunagu-${{ matrix.component }} -p ${GITHUB_WORKSPACE}/tsunagu-${{ matrix.component }}/target/*.zip --builder paketobuildpacks/builder:tiny --publish --run-image index.docker.io/paketobuildpacks/run@sha256:68ea956969dd199939fcabaa45a22bf0b8ac352532f67f157344e1c2cf2f931f
     - uses: actions/upload-artifact@v2
       with:
         name: tsunagu-dist
