@@ -78,6 +78,7 @@ metadata:
 type: Opaque
 stringData:
   token: #@ data.values.tsunagu.token
+  authorization-token: #@ data.values.tsunagu.authorization_token
 ---
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy

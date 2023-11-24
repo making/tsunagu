@@ -7,6 +7,8 @@ tsunagu:
   create_namespace: true
   #@schema/desc "access token to accept the connection from clients"
   token: ""
+  #@schema/desc "authorization token for the proxied requests"
+  authorization_token: ""
   #@schema/desc "FQDN for the tsunagu server"
   fqdn: tsunagu.example.com
   issuer:

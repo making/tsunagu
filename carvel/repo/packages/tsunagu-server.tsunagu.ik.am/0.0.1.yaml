@@ -27,6 +27,10 @@ spec:
               type: string
               description: access token to accept the connection from clients
               default: ""
+            authorization_token:
+              type: string
+              description: authorization token for the proxied requests
+              default: ""
             fqdn:
               type: string
               description: FQDN for the tsunagu server

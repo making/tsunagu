@@ -14,5 +14,5 @@ images:
       - resolved:
           tag: 0.0.1
           url: ghcr.io/making/tsunagu-server-bundle:0.0.1
-  image: ghcr.io/making/tsunagu-server-bundle@sha256:ebd4631c04d04ea5c45b9fbd40635ca563db3385f20ff246af9c767a27282602
+  image: ghcr.io/making/tsunagu-server-bundle@sha256:8c6c88fdebbcc971ca227e14b70be406c267525b7df3c1906370d74a29c2f119
 kind: ImagesLock
