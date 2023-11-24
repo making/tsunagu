@@ -10,7 +10,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -40,6 +39,9 @@ import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.rsocket.RSocketRequester;
 import org.springframework.messaging.rsocket.annotation.ConnectMapping;
+import org.springframework.util.Base64Utils;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -96,6 +98,7 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 
 	@RequestMapping(path = "**")
 	public Mono<Void> proxy(ServerHttpRequest request, ServerHttpResponse response) throws Exception {
+		this.checkAuthorization(request);
 		final HttpHeaders httpHeaders = setForwardHeaders(request);
 		final HttpRequestMetadata httpRequestMetadata = new HttpRequestMetadata(request.getMethod(), request.getURI(), httpHeaders);
 		final Flux<DataBuffer> responseStream;
@@ -230,8 +233,48 @@ public class TsunaguController implements Function<ServerHttpRequest, WebSocketH
 		httpHeaders.addAll(source);
 		final String remoteAddress = request.getRemoteAddress().getAddress().getHostAddress();
 		final String forwarded = String.format("for=%s;host=%s:%d;proto=%s", remoteAddress, uri.getHost(), port, scheme);
-		httpHeaders.set("Forwarded", forwarded);
-		httpHeaders.set("X-Real-IP", remoteAddress);
-		return httpHeaders;
+		httpHeaders.set("Forwarded", forwarded); httpHeaders.set("X-Real-IP", remoteAddress); return httpHeaders;
+	}
+
+
+	@ExceptionHandler(AuthorizationException.class)
+	public Mono<ResponseEntity<Map<String, ?>>> handleAuthorizationException(AuthorizationException e) {
+		return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+				.header(HttpHeaders.WWW_AUTHENTICATE, "Basic realm=\"Tsunagu API\"")
+				.body(Map.of("error", Map.of("message", e.getMessage(), "type", "invalid_request_error", "code", e.code))));
+	}
+
+	void checkAuthorization(ServerHttpRequest request) {
+		if (StringUtils.hasText(this.props.getAuthorizationToken())) {
+			final String authorization = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+			if (StringUtils.hasText(authorization)) {
+				if (authorization.startsWith("Bearer") || authorization.startsWith("bearer")) {
+					final String token = authorization.replace("Bearer ", "").replace("bearer ", "");
+					if (!Objects.equals(this.props.getAuthorizationToken(), token)) {
+						throw new AuthorizationException("Incorrect API key provided: " + token, "invalid_api_key");
+					}
+				}
+				else if (authorization.startsWith("Basic") || authorization.startsWith("basic")) {
+					final String basic = authorization.replace("Basic ", "").replace("basic ", "");
+					final String token = new String(Base64Utils.decodeFromString(basic)).split(":", 2)[1];
+					if (!Objects.equals(this.props.getAuthorizationToken(), token)) {
+						throw new AuthorizationException("Incorrect API key provided: " + token, "invalid_api_key");
+					}
+				}
+			}
+			else {
+				throw new AuthorizationException("You didn't provide an API key. You need to provide your API key in an Authorization header using Bearer auth (i.e. Authorization: Bearer YOUR_KEY), or as the password field (with blank username) if you're accesing the API from your browser and are prompted for a username and password.", "");
+			}
+		}
+	}
+
+	public static class AuthorizationException extends RuntimeException {
+
+
+		private final String code;
+
+		public AuthorizationException(String message, String code) {
+			super(message); this.code = code;
+		}
 	}
 }

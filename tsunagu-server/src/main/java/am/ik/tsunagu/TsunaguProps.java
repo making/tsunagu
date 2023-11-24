@@ -19,14 +19,17 @@ import org.springframework.core.io.Resource;
 public class TsunaguProps {
 	private final String token;
 
+	private final String authorizationToken;
+
 	private final Tls tls;
 
 	private final Map<String, String> acmeChallenge;
 
 	private final Logger log = LoggerFactory.getLogger(TsunaguProps.class);
 
-	public TsunaguProps(String token, Tls tls, Map<String, String> acmeChallenge) {
+	public TsunaguProps(String token, String authorizationToken, Tls tls, Map<String, String> acmeChallenge) {
 		this.tls = tls;
+		this.authorizationToken = authorizationToken;
 		this.acmeChallenge = acmeChallenge;
 		if (token == null) {
 			this.token = UUID.randomUUID().toString();
@@ -39,6 +42,10 @@ public class TsunaguProps {
 
 	public String getToken() {
 		return token;
+	}
+
+	public String getAuthorizationToken() {
+		return authorizationToken;
 	}
 
 	public Tls getTls() {
